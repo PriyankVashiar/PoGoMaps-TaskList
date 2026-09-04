@@ -49,10 +49,10 @@
 
             try {
                 // Fetch the generated JSON file
-                const response = await fetch('./JSON/response.json');
-                if (!response.ok) throw new Error("Could not load response.json");
+                const response = await fetch('./JSON/Quest_List.json');
+                if (!response.ok) throw new Error("Could not load Quest_List.json");
                 
-                const data = await response.json();
+                const data = await Quest_List.json();
                 const categories = data.categories || {};
 
                 container.innerHTML = ''; // Clear loading text
