@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_a59cc8110a31f1462f0069287ad470ac {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+</head>
+<body>
+    
+    
+            <div class="folium-map" id="map_a59cc8110a31f1462f0069287ad470ac" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_a59cc8110a31f1462f0069287ad470ac = L.map(
+                "map_a59cc8110a31f1462f0069287ad470ac",
+                {
+                    center: [40.7831, -73.9712],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 13,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_da4a43b866e78847cca3d32f2445f472 = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 19,
+  "maxNativeZoom": 19,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_da4a43b866e78847cca3d32f2445f472.addTo(map_a59cc8110a31f1462f0069287ad470ac);
+        
+    
+            var marker_60539af778db53f0266d779731fbff65 = L.marker(
+                [40.792573, -73.969106],
+                {
+}
+            ).addTo(map_a59cc8110a31f1462f0069287ad470ac);
+        
+    
+            var icon_16c52cd40ac957d9e353b927f26a9582 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_22f6405f10c15925f16598e994649abc = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_f2a3af97d4a6cdbec213c170c90a5ad1 = $(`<div id="html_f2a3af97d4a6cdbec213c170c90a5ad1" style="width: 100.0%; height: 100.0%;"><b>#1: Beth Hillel Hebrew Institute</b><br><b>Task:</b> Make 3 Great Curveball Throws in a row<br><b>Reward:</b> 1500 Stardust</div>`)[0];
+                popup_22f6405f10c15925f16598e994649abc.setContent(html_f2a3af97d4a6cdbec213c170c90a5ad1);
+            
+        
+
+        marker_60539af778db53f0266d779731fbff65.bindPopup(popup_22f6405f10c15925f16598e994649abc)
+        ;
+
+        
+    
+    
+            marker_60539af778db53f0266d779731fbff65.bindTooltip(
+                `<div>
+                     #1: Beth Hillel Hebrew Institute
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_60539af778db53f0266d779731fbff65.setIcon(icon_16c52cd40ac957d9e353b927f26a9582);
+            
+    
+            var marker_8caf895b683a351478107373c612daf9 = L.marker(
+                [40.767382, -73.966533],
+                {
+}
+            ).addTo(map_a59cc8110a31f1462f0069287ad470ac);
+        
+    
+            var icon_115be7a450f8595e91996403d0609b4c = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_e5d912e966bfa0c2f45b141168a0c82f = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_557a291a01c363b63b25723c7890892e = $(`<div id="html_557a291a01c363b63b25723c7890892e" style="width: 100.0%; height: 100.0%;"><b>#2: 5th Ave Curvey Building Artwork</b><br><b>Task:</b> Make 3 Great Curveball Throws in a row<br><b>Reward:</b> 1500 Stardust</div>`)[0];
+                popup_e5d912e966bfa0c2f45b141168a0c82f.setContent(html_557a291a01c363b63b25723c7890892e);
+            
+        
+
+        marker_8caf895b683a351478107373c612daf9.bindPopup(popup_e5d912e966bfa0c2f45b141168a0c82f)
+        ;
+
+        
+    
+    
+            marker_8caf895b683a351478107373c612daf9.bindTooltip(
+                `<div>
+                     #2: 5th Ave Curvey Building Artwork
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_8caf895b683a351478107373c612daf9.setIcon(icon_115be7a450f8595e91996403d0609b4c);
+            
+    
+            var marker_348c50014aca931fef75d1f1eac5c825 = L.marker(
+                [40.740335, -73.937537],
+                {
+}
+            ).addTo(map_a59cc8110a31f1462f0069287ad470ac);
+        
+    
+            var icon_2db013dd49499c94811b9af18934237a = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_79bec1bdd49411cb12603a2641efb4c8 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_d56c0d0b05fe134da3ec0d41f90cc6b9 = $(`<div id="html_d56c0d0b05fe134da3ec0d41f90cc6b9" style="width: 100.0%; height: 100.0%;"><b>#3: Griddle Deli</b><br><b>Task:</b> Make 3 Great Curveball Throws in a row<br><b>Reward:</b> 1500 Stardust</div>`)[0];
+                popup_79bec1bdd49411cb12603a2641efb4c8.setContent(html_d56c0d0b05fe134da3ec0d41f90cc6b9);
+            
+        
+
+        marker_348c50014aca931fef75d1f1eac5c825.bindPopup(popup_79bec1bdd49411cb12603a2641efb4c8)
+        ;
+
+        
+    
+    
+            marker_348c50014aca931fef75d1f1eac5c825.bindTooltip(
+                `<div>
+                     #3: Griddle Deli
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_348c50014aca931fef75d1f1eac5c825.setIcon(icon_2db013dd49499c94811b9af18934237a);
+            
+    
+            var marker_6f093d881529eafa9acbc7e701e3f902 = L.marker(
+                [40.71469, -73.965054],
+                {
+}
+            ).addTo(map_a59cc8110a31f1462f0069287ad470ac);
+        
+    
+            var icon_7f246b429158c8279a8de090ce6c8ac1 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_887bb8c19004b58de3df0d9b0f996a1c = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_8ee72f7a866496b95b8b92a1c5009b51 = $(`<div id="html_8ee72f7a866496b95b8b92a1c5009b51" style="width: 100.0%; height: 100.0%;"><b>#4: Picture Farm</b><br><b>Task:</b> Make 3 Great Curveball Throws in a row<br><b>Reward:</b> 1500 Stardust</div>`)[0];
+                popup_887bb8c19004b58de3df0d9b0f996a1c.setContent(html_8ee72f7a866496b95b8b92a1c5009b51);
+            
+        
+
+        marker_6f093d881529eafa9acbc7e701e3f902.bindPopup(popup_887bb8c19004b58de3df0d9b0f996a1c)
+        ;
+
+        
+    
+    
+            marker_6f093d881529eafa9acbc7e701e3f902.bindTooltip(
+                `<div>
+                     #4: Picture Farm
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_6f093d881529eafa9acbc7e701e3f902.setIcon(icon_7f246b429158c8279a8de090ce6c8ac1);
+            
+    
+            var marker_57ba294a8da1c5bf8de7cdca2a264922 = L.marker(
+                [40.72185, -73.996391],
+                {
+}
+            ).addTo(map_a59cc8110a31f1462f0069287ad470ac);
+        
+    
+            var icon_0ba889ecd60578110e4175d988f7133d = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_4710b7512d099028ab72ec4f2511203b = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_e0c7286d755ace7c8f955edd19d81bf5 = $(`<div id="html_e0c7286d755ace7c8f955edd19d81bf5" style="width: 100.0%; height: 100.0%;"><b>#5: Shark Enjoying a Drink</b><br><b>Task:</b> Make 3 Great Curveball Throws in a row<br><b>Reward:</b> 1500 Stardust</div>`)[0];
+                popup_4710b7512d099028ab72ec4f2511203b.setContent(html_e0c7286d755ace7c8f955edd19d81bf5);
+            
+        
+
+        marker_57ba294a8da1c5bf8de7cdca2a264922.bindPopup(popup_4710b7512d099028ab72ec4f2511203b)
+        ;
+
+        
+    
+    
+            marker_57ba294a8da1c5bf8de7cdca2a264922.bindTooltip(
+                `<div>
+                     #5: Shark Enjoying a Drink
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_57ba294a8da1c5bf8de7cdca2a264922.setIcon(icon_0ba889ecd60578110e4175d988f7133d);
+            
+    
+            var poly_line_5857387905e4324334aed8e0a528986b = L.polyline(
+                [[40.792573, -73.969106], [40.767382, -73.966533], [40.740335, -73.937537], [40.71469, -73.965054], [40.72185, -73.996391]],
+                {"bubblingMouseEvents": true, "color": "#007bff", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "#007bff", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 4}
+            ).addTo(map_a59cc8110a31f1462f0069287ad470ac);
+        
+    
+            poly_line_5857387905e4324334aed8e0a528986b.bindTooltip(
+                `<div>
+                     Total Distance: 13.12 km
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+</script>
+</html>
