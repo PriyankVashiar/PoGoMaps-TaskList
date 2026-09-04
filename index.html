@@ -36,7 +36,6 @@
     <div id="quest-container">Loading quests...</div>
 
     <script>
-        // Map rewards_types IDs to display labels
         const CATEGORY_MAP = {
             "2": "Items",
             "3": "Stardust",
@@ -48,16 +47,15 @@
             const container = document.getElementById('quest-container');
 
             try {
-                // Fetch the generated JSON file
+                // Must pass the file path as a string enclosed in quotes
                 const response = await fetch('./JSON/Quest_List.json');
                 if (!response.ok) throw new Error("Could not load Quest_List.json");
                 
-                const data = await Quest_List.json();
+                const data = await response.json();
                 const categories = data.categories || {};
 
-                container.innerHTML = ''; // Clear loading text
+                container.innerHTML = ''; 
 
-                // Iterate over category IDs (e.g., "2", "3", "7", "12")
                 for (const [typeId, idsGroup] of Object.entries(categories)) {
                     const categoryName = CATEGORY_MAP[typeId] || `Category ${typeId}`;
 
@@ -66,11 +64,9 @@
                     
                     let html = `<h2 class="category-title">${categoryName}</h2>`;
 
-                    // Iterate over Item/Reward IDs
                     for (const [rewardId, amountsGroup] of Object.entries(idsGroup)) {
                         html += `<div class="id-block"><strong>ID: ${rewardId}</strong>`;
 
-                        // Iterate over Amounts
                         for (const [amount, conditions] of Object.entries(amountsGroup)) {
                             html += `
                                 <div class="amount-block">Amount: ${amount}</div>
@@ -92,7 +88,6 @@
             }
         }
 
-        // Initialize fetching on load
         window.addEventListener('DOMContentLoaded', loadQuests);
     </script>
 </body>
