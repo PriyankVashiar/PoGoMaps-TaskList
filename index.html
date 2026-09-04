@@ -3,103 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PoGo Maps Task Filter</title>
+    <title>PoGo Field Research Quests</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #0f172a; color: #f8fafc; padding: 20px; }
-        
-        .card {
-            background: #1e293b;
-            width: 100%;
-            max-width: 480px;
-            padding: 28px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            border: 1px solid #334155;
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 20px;
+            color: #333;
         }
-
-        h2 { font-size: 1.3rem; text-align: center; color: #38bdf8; }
-        p { font-size: 0.85rem; color: #94a3b8; text-align: center; }
-        
-        .grid-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        
-        button {
-            padding: 12px;
-            background: #3b82f6;
-            color: #ffffff;
-            font-size: 0.85rem;
-            font-weight: 600;
-            border: none;
+        h1 { text-align: center; }
+        .category-block {
+            background: #fff;
             border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        button:hover { background: #2563eb; }
-        button:active { transform: scale(0.98); }
-
-        .form-group { display: flex; flex-direction: column; gap: 4px; margin-top: 5px; }
-        label { font-size: 0.75rem; color: #94a3b8; font-weight: 600; }
-        input { padding: 8px 10px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; font-size: 0.85rem; }
-
-        .status {
-            background: #0f172a;
-            border: 1px solid #334155;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            color: #38bdf8;
-            text-align: center;
+        .category-title {
+            color: #1e88e5;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 5px;
+            margin-top: 0;
         }
+        .id-block { margin-left: 15px; margin-top: 10px; }
+        .amount-block { margin-left: 15px; font-weight: bold; }
+        ul { margin-top: 5px; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>Manhattan GPX Task Filters</h2>
-        <p>Select a quick preset to load filter values:</p>
-
-        <!-- 4 Hardcoded Filter Buttons -->
-        <div class="grid-buttons">
-            <button onclick="applyFilter('3', '1500', '0', 'Make 3 Great Curveball Throws in a row')">1500 Stardust (3 Great)</button>
-            <button onclick="applyFilter('3', '1000', '0', 'Catch a Dragon-type Pokémon')">1000 Stardust (Dragon)</button>
-            <button onclick="applyFilter('7', '0', '77', 'Explore 2 km')">Galarian Ponyta (2 km)</button>
-            <button onclick="applyFilter('2', '5', '1', 'Catch 5 Pokémon with Weather Boost')">5 Poké Balls (Weather)</button>
-        </div>
-
-        <hr style="border-color: #334155; margin: 10px 0;">
-
-        <div class="form-group">
-            <label>rewards_types</label>
-            <input type="text" id="rType" value="3" readonly>
-        </div>
-        <div class="form-group">
-            <label>rewards_amounts</label>
-            <input type="text" id="rAmount" value="1500" readonly>
-        </div>
-        <div class="form-group">
-            <label>rewards_ids</label>
-            <input type="text" id="rId" value="0" readonly>
-        </div>
-        <div class="form-group">
-            <label>conditions_string</label>
-            <input type="text" id="rCond" value="Make 3 Great Curveball Throws in a row" readonly>
-        </div>
-
-        <div class="status">
-            Python processes daily data into <code>/GPX/</code> using these criteria.
-        </div>
-    </div>
+    <h1>Field Research Tasks</h1>
+    <div id="quest-container">Loading quests...</div>
 
     <script>
-        function applyFilter(type, amount, id, condition) {
-            document.getElementById('rType').value = type;
-            document.getElementById('rAmount').value = amount;
-            document.getElementById('rId').value = id;
-            document.getElementById('rCond').value = condition;
+        // Map rewards_types IDs to display labels
+        const CATEGORY_MAP = {
+            "2": "Items",
+            "3": "Stardust",
+            "7": "Pokémon",
+            "12": "Mega Energy"
+        };
+
+        async function loadQuests() {
+            const container = document.getElementById('quest-container');
+
+            try {
+                // Fetch the generated JSON file
+                const response = await fetch('./JSON/response.json');
+                if (!response.ok) throw new Error("Could not load response.json");
+                
+                const data = await response.json();
+                const categories = data.categories || {};
+
+                container.innerHTML = ''; // Clear loading text
+
+                // Iterate over category IDs (e.g., "2", "3", "7", "12")
+                for (const [typeId, idsGroup] of Object.entries(categories)) {
+                    const categoryName = CATEGORY_MAP[typeId] || `Category ${typeId}`;
+
+                    const catSection = document.createElement('div');
+                    catSection.className = 'category-block';
+                    
+                    let html = `<h2 class="category-title">${categoryName}</h2>`;
+
+                    // Iterate over Item/Reward IDs
+                    for (const [rewardId, amountsGroup] of Object.entries(idsGroup)) {
+                        html += `<div class="id-block"><strong>ID: ${rewardId}</strong>`;
+
+                        // Iterate over Amounts
+                        for (const [amount, conditions] of Object.entries(amountsGroup)) {
+                            html += `
+                                <div class="amount-block">Amount: ${amount}</div>
+                                <ul>
+                                    ${conditions.map(cond => `<li>${cond}</li>`).join('')}
+                                </ul>
+                            `;
+                        }
+                        html += `</div>`;
+                    }
+
+                    catSection.innerHTML = html;
+                    container.appendChild(catSection);
+                }
+
+            } catch (error) {
+                container.innerHTML = `<p style="color: red;">Error loading data: ${error.message}</p>`;
+                console.error(error);
+            }
         }
+
+        // Initialize fetching on load
+        window.addEventListener('DOMContentLoaded', loadQuests);
     </script>
 </body>
 </html>

@@ -1,0 +1,14 @@
+{
+  "categories": {
+    "3": { // fetched from "rewards_types" in response.json
+      "0": { // fetched from "rewards_ids" in response.json
+        "200": [ // fetched from "rewards_amount" in response.json
+            "Catch 10 Pokémon with Weather Boost", // fetched from "rewards_conditions" in response.json
+            "Make 3 Nice Throws in a row",
+        ],
+        "500": [ // fetched from "rewards_amount" in response.json
+            "Catch 10 Water-type Pokémon", // fetched from "rewards_conditions" in response.json
+        ]}
+      }
+    }
+}
