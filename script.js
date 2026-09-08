@@ -99,13 +99,40 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
 
     wrapper.appendChild(container);
 
-    // Toggle dropdown
+    // Toggle dropdown & handle direction dynamically based on space
     selectBox.addEventListener('click', (e) => {
         e.stopPropagation();
+
+        const isShowing = container.classList.contains('show');
+
+        // Close all other open dropdowns
         document.querySelectorAll('.checkboxes-container.show').forEach(el => {
-            if (el !== container) el.classList.remove('show');
+            if (el !== container) {
+                el.classList.remove('show', 'drop-up');
+            }
         });
-        container.classList.toggle('show');
+
+        if (!isShowing) {
+            container.classList.add('show');
+
+            // Check distance to the bottom of the parent card container
+            const cardBody = wrapper.closest('.card-body');
+            if (cardBody) {
+                const cardRect = cardBody.getBoundingClientRect();
+                const boxRect = selectBox.getBoundingClientRect();
+                const dropdownHeight = 200; // max-height of dropdown
+
+                // If remaining space below the box is less than dropdown height, drop UP
+                const spaceBelow = cardRect.bottom - boxRect.bottom;
+                if (spaceBelow < dropdownHeight) {
+                    container.classList.add('drop-up');
+                } else {
+                    container.classList.remove('drop-up');
+                }
+            }
+        } else {
+            container.classList.remove('show', 'drop-up');
+        }
     });
 
     selectAll.addEventListener('click', (e) => {
@@ -171,7 +198,7 @@ function renderCards() {
                 const pokemonName = pokemonData?.name?.english || `ID: ${pokemonId}`;
                 const iconSrc = pokemonData?.image?.hires || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`;
 
-                // Extract conditions from nested level 3 (amount is usually 1 for encounters, 10 for Mega Energy)
+                // Extract conditions from nested level 3
                 const level3Obj = level2Obj[pokemonId] || {};
                 const amountKey = Object.keys(level3Obj)[0] || (cat === '12' ? '10' : '1');
                 const conditions = level3Obj[amountKey] || [];
@@ -279,56 +306,10 @@ function renderCards() {
 
 // Close open dropdowns when clicking outside
 document.addEventListener('click', () => {
-    document.querySelectorAll('.checkboxes-container.show').forEach(el => el.classList.remove('show'));
+    document.querySelectorAll('.checkboxes-container.show').forEach(el => el.classList.remove('show', 'drop-up'));
 });
 
-// --- Distance & 2-Opt Optimization Logic ---
-function haversineDistance(p1, p2) {
-    const R = 6371000;
-    const dLat = (p2.lat - p1.lat) * Math.PI / 180;
-    const dLng = (p2.lng - p1.lng) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
-              Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function calculateTotalDistance(route) {
-    let dist = 0;
-    for (let i = 0; i < route.length - 1; i++) {
-        dist += haversineDistance(route[i], route[i + 1]);
-    }
-    return dist;
-}
-
-function twoOptOptimize(points) {
-    if (points.length <= 3) return points;
-    let bestRoute = [...points];
-    let bestDistance = calculateTotalDistance(bestRoute);
-    let improved = true;
-
-    while (improved) {
-        improved = false;
-        for (let i = 1; i < bestRoute.length - 2; i++) {
-            for (let j = i + 1; j < bestRoute.length; j++) {
-                if (j - i === 1) continue;
-                const newRoute = bestRoute.slice(0, i).concat(
-                    bestRoute.slice(i, j + 1).reverse(),
-                    bestRoute.slice(j + 1)
-                );
-                const newDistance = calculateTotalDistance(newRoute);
-                if (newDistance < bestDistance) {
-                    bestRoute = newRoute;
-                    bestDistance = newDistance;
-                    improved = true;
-                }
-            }
-        }
-    }
-    return bestRoute;
-}
-
-// --- GPX Generator ---
+// --- GPX Generator using Web Worker ---
 async function generateAndDownloadGPX() {
     const activeFilters = new Set();
     const checkedBoxes = document.querySelectorAll('.custom-multiselect input[type="checkbox"]:checked');
@@ -377,20 +358,50 @@ async function generateAndDownloadGPX() {
             return;
         }
 
-        const optimizedRoute = twoOptOptimize(matchedCoords);
+        // Show loading state on button
+        const btn = document.querySelector('.btn-generate');
+        btn.textContent = 'Filtering Manhattan Clusters & Optimizing...';
+        btn.disabled = true;
 
-        let gpxStr = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-        gpxStr += `<gpx version="1.1" creator="PoGo-Route-Optimizer">\n  <trk>\n    <name>Optimized Quests Route ${todayStr}</name>\n    <trkseg>\n`;
-        optimizedRoute.forEach(pt => {
-            gpxStr += `      <trkpt lat="${pt.lat}" lon="${pt.lng}">\n        <name>${pt.name}</name>\n      </trkpt>\n`;
-        });
-        gpxStr += `    </trkseg>\n  </trk>\n</gpx>`;
+        // Pass to Web Worker
+        const worker = new Worker('./worker.js');
+        worker.postMessage(matchedCoords);
 
-        const blob = new Blob([gpxStr], { type: 'application/gpx+xml' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `${todayStr}_sorted.gpx`;
-        link.click();
+        worker.onmessage = function(e) {
+            const optimizedRoute = e.data;
+
+            if (!optimizedRoute || optimizedRoute.length === 0) {
+                alert('No clusters with 6+ Pokéstops within 1.5km found inside Manhattan for selected filters.');
+                btn.textContent = 'Generate & Download GPX';
+                btn.disabled = false;
+                worker.terminate();
+                return;
+            }
+
+            let gpxStr = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+            gpxStr += `<gpx version="1.1" creator="PoGo-Route-Optimizer">\n  <trk>\n    <name>Optimized Manhattan Route ${todayStr}</name>\n    <trkseg>\n`;
+            optimizedRoute.forEach(pt => {
+                gpxStr += `      <trkpt lat="${pt.lat}" lon="${pt.lng}">\n        <name>${pt.name}</name>\n      </trkpt>\n`;
+            });
+            gpxStr += `    </trkseg>\n  </trk>\n</gpx>`;
+
+            const blob = new Blob([gpxStr], { type: 'application/gpx+xml' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${todayStr}_manhattan_sorted.gpx`;
+            link.click();
+
+            btn.textContent = 'Generate & Download GPX';
+            btn.disabled = false;
+            worker.terminate();
+        };
+
+        worker.onerror = function(err) {
+            alert('Worker error: ' + err.message);
+            btn.textContent = 'Generate & Download GPX';
+            btn.disabled = false;
+            worker.terminate();
+        };
 
     } catch (err) {
         alert('Error generating GPX: ' + err.message);
