@@ -3,92 +3,255 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PoGo Field Research Quests</title>
+    <title>PoGo Quest Route Generator</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f6f8;
-            margin: 20px;
-            color: #333;
-        }
-        h1 { text-align: center; }
-        .category-block {
-            background: #fff;
-            border-radius: 8px;
-            padding: 15px 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .category-title {
-            color: #1e88e5;
-            border-bottom: 2px solid #e0e0e0;
-            padding-bottom: 5px;
-            margin-top: 0;
-        }
-        .id-block { margin-left: 15px; margin-top: 10px; }
-        .amount-block { margin-left: 15px; font-weight: bold; }
-        ul { margin-top: 5px; }
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #1e1e2e; color: #cdd6f4; }
+        h1, h2 { color: #89b4fa; }
+        .container { max-width: 800px; margin: auto; }
+        .card { background: #313244; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        select, button { padding: 10px; margin: 5px 0; border-radius: 5px; border: none; font-size: 14px; }
+        select { width: 100%; background: #45475a; color: #fff; }
+        button { background: #a6e3a1; color: #11111b; font-weight: bold; cursor: pointer; }
+        button:hover { background: #94e2d5; }
+        .selected-list { list-style: none; padding: 0; }
+        .selected-list li { background: #45475a; padding: 8px 12px; margin: 5px 0; border-radius: 4px; display: flex; justify-content: space-between; }
+        .remove-btn { color: #f38ba8; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h1>PoGo Quest GPX Generator</h1>
 
-    <h1>Field Research Tasks</h1>
-    <div id="quest-container">Loading quests...</div>
+        <div class="card">
+            <h2>Select Filters</h2>
+            <label>Category (Level 1):</label>
+            <select id="catSelect" onchange="populateLevel2()"><option value="">-- Select Category --</option></select>
+
+            <label>Reward ID / Stardust (Level 2):</label>
+            <select id="l2Select" onchange="populateLevel3()"><option value="">-- Select Level 2 --</option></select>
+
+            <label>Amount (Level 3):</label>
+            <select id="l3Select" onchange="populateConditions()"><option value="">-- Select Level 3 --</option></select>
+
+            <label>Condition:</label>
+            <select id="condSelect"><option value="">-- Select Condition --</option></select>
+
+            <button onclick="addFilter()">Add Filter</button>
+        </div>
+
+        <div class="card">
+            <h2>Active Filters</h2>
+            <ul id="filterList" class="selected-list"></ul>
+            <button onclick="generateAndDownloadGPX()">Generate & Download GPX</button>
+        </div>
+    </div>
 
     <script>
-        const CATEGORY_MAP = {
-            "2": "Items",
-            "3": "Stardust",
-            "7": "Pokémon",
-            "12": "Mega Energy"
-        };
+        let questList = {};
+        const activeFilters = new Set();
 
-        async function loadQuests() {
-            const container = document.getElementById('quest-container');
-
+        // 1. Fetch Quest_List.json on load
+        async function init() {
             try {
-                // Must pass the file path as a string enclosed in quotes
-                const response = await fetch('./JSON/Quest_List.json');
-                if (!response.ok) throw new Error("Could not load Quest_List.json");
+                const res = await fetch('./JSON/Quest_List.json');
+                const data = await res.json();
+                questList = data.categories || {};
                 
-                const data = await response.json();
-                const categories = data.categories || {};
-
-                container.innerHTML = ''; 
-
-                for (const [typeId, idsGroup] of Object.entries(categories)) {
-                    const categoryName = CATEGORY_MAP[typeId] || `Category ${typeId}`;
-
-                    const catSection = document.createElement('div');
-                    catSection.className = 'category-block';
-                    
-                    let html = `<h2 class="category-title">${categoryName}</h2>`;
-
-                    for (const [rewardId, amountsGroup] of Object.entries(idsGroup)) {
-                        html += `<div class="id-block"><strong>ID: ${rewardId}</strong>`;
-
-                        for (const [amount, conditions] of Object.entries(amountsGroup)) {
-                            html += `
-                                <div class="amount-block">Amount: ${amount}</div>
-                                <ul>
-                                    ${conditions.map(cond => `<li>${cond}</li>`).join('')}
-                                </ul>
-                            `;
-                        }
-                        html += `</div>`;
-                    }
-
-                    catSection.innerHTML = html;
-                    container.appendChild(catSection);
-                }
-
-            } catch (error) {
-                container.innerHTML = `<p style="color: red;">Error loading data: ${error.message}</p>`;
-                console.error(error);
+                const catSelect = document.getElementById('catSelect');
+                Object.keys(questList).forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat;
+                    opt.textContent = cat === '2' ? 'Items (t2)' : cat === '3' ? 'Stardust (t3)' : cat === '7' ? 'Encounters (t7)' : 'Mega Energy (t12)';
+                    catSelect.appendChild(opt);
+                });
+            } catch (err) {
+                alert('Error loading Quest_List.json: ' + err.message);
             }
         }
 
-        window.addEventListener('DOMContentLoaded', loadQuests);
+        function populateLevel2() {
+            const cat = document.getElementById('catSelect').value;
+            const l2Select = document.getElementById('l2Select');
+            l2Select.innerHTML = '<option value="">-- Select Level 2 --</option>';
+            if (!cat || !questList[cat]) return;
+
+            Object.keys(questList[cat]).forEach(l2 => {
+                const opt = document.createElement('option');
+                opt.value = l2;
+                opt.textContent = l2;
+                l2Select.appendChild(opt);
+            });
+        }
+
+        function populateLevel3() {
+            const cat = document.getElementById('catSelect').value;
+            const l2 = document.getElementById('l2Select').value;
+            const l3Select = document.getElementById('l3Select');
+            l3Select.innerHTML = '<option value="">-- Select Level 3 --</option>';
+            if (!cat || !l2 || !questList[cat][l2]) return;
+
+            Object.keys(questList[cat][l2]).forEach(l3 => {
+                const opt = document.createElement('option');
+                opt.value = l3;
+                opt.textContent = l3;
+                l3Select.appendChild(opt);
+            });
+        }
+
+        function populateConditions() {
+            const cat = document.getElementById('catSelect').value;
+            const l2 = document.getElementById('l2Select').value;
+            const l3 = document.getElementById('l3Select').value;
+            const condSelect = document.getElementById('condSelect');
+            condSelect.innerHTML = '<option value="">-- Select Condition --</option>';
+            if (!cat || !l2 || !l3 || !questList[cat][l2][l3]) return;
+
+            questList[cat][l2][l3].forEach(cond => {
+                const opt = document.createElement('option');
+                opt.value = cond;
+                opt.textContent = cond;
+                condSelect.appendChild(opt);
+            });
+        }
+
+        function addFilter() {
+            const cat = document.getElementById('catSelect').value;
+            const l2 = document.getElementById('l2Select').value;
+            const l3 = document.getElementById('l3Select').value;
+            const cond = document.getElementById('condSelect').value;
+
+            if (!cat || !l2 || !l3 || !cond) {
+                alert('Please complete all selection dropdowns.');
+                return;
+            }
+
+            const filterStr = `${cat},${l2},${l3},${cond}`;
+            activeFilters.add(filterStr);
+            renderFilters();
+        }
+
+        function removeFilter(filterStr) {
+            activeFilters.delete(filterStr);
+            renderFilters();
+        }
+
+        function renderFilters() {
+            const ul = document.getElementById('filterList');
+            ul.innerHTML = '';
+            activeFilters.forEach(f => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${f}</span> <span class="remove-btn" onclick="removeFilter('${f}')">✕</span>`;
+                ul.appendChild(li);
+            });
+        }
+
+        // --- Distance & 2-Opt Logic ---
+        function haversineDistance(p1, p2) {
+            const R = 6371000;
+            const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+            const dLng = (p2.lng - p1.lng) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function calculateTotalDistance(route) {
+            let dist = 0;
+            for (let i = 0; i < route.length - 1; i++) {
+                dist += haversineDistance(route[i], route[i + 1]);
+            }
+            return dist;
+        }
+
+        function twoOptOptimize(points) {
+            if (points.length <= 3) return points;
+            let bestRoute = [...points];
+            let bestDistance = calculateTotalDistance(bestRoute);
+            let improved = true;
+
+            while (improved) {
+                improved = false;
+                for (let i = 1; i < bestRoute.length - 2; i++) {
+                    for (let j = i + 1; j < bestRoute.length; j++) {
+                        if (j - i === 1) continue;
+                        const newRoute = bestRoute.slice(0, i).concat(
+                            bestRoute.slice(i, j + 1).reverse(),
+                            bestRoute.slice(j + 1)
+                        );
+                        const newDistance = calculateTotalDistance(newRoute);
+                        if (newDistance < bestDistance) {
+                            bestRoute = newRoute;
+                            bestDistance = newDistance;
+                            improved = true;
+                        }
+                    }
+                }
+            }
+            return bestRoute;
+        }
+
+        // --- Main Process & Download ---
+        async function generateAndDownloadGPX() {
+            if (activeFilters.size === 0) {
+                alert('Please add at least one filter condition.');
+                return;
+            }
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            const questsPath = `./JSON/quests_${todayStr}.json`;
+
+            try {
+                const res = await fetch(questsPath);
+                if (!res.ok) throw new Error(`Could not locate active file: ${questsPath}`);
+                const data = await res.json();
+                const quests = data.quests || [];
+
+                const matchedCoords = [];
+                quests.forEach(q => {
+                    const l1 = String(q.rewards_types || '').trim();
+                    const l2 = String(q.rewards_ids || '0').trim();
+                    const l3 = String(q.rewards_amounts || '0').trim();
+                    const cond = String(q.conditions_string || '').trim();
+                    const filterKey = `${l1},${l2},${l3},${cond}`;
+
+                    if (activeFilters.has(filterKey)) {
+                        matchedCoords.push({
+                            lat: parseFloat(q.lat),
+                            lng: parseFloat(q.lng),
+                            name: q.name || 'Pokestop'
+                        });
+                    }
+                });
+
+                if (matchedCoords.length === 0) {
+                    alert('No matching pokestops found for active filters.');
+                    return;
+                }
+
+                const optimizedRoute = twoOptOptimize(matchedCoords);
+
+                // Build GPX String
+                let gpxStr = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+                gpxStr += `<gpx version="1.1" creator="PoGo-Route-Optimizer">\n  <trk>\n    <name>Optimized Quests Route ${todayStr}</name>\n    <trkseg>\n`;
+                optimizedRoute.forEach(pt => {
+                    gpxStr += `      <trkpt lat="${pt.lat}" lon="${pt.lng}">\n        <name>${pt.name}</name>\n      </trkpt>\n`;
+                });
+                gpxStr += `    </trkseg>\n  </trk>\n</gpx>`;
+
+                // Trigger Download
+                const blob = new Blob([gpxStr], { type: 'application/gpx+xml' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${todayStr}_sorted.gpx`;
+                link.click();
+
+            } catch (err) {
+                alert('Error generating GPX: ' + err.message);
+            }
+        }
+
+        window.onload = init;
     </script>
 </body>
 </html>

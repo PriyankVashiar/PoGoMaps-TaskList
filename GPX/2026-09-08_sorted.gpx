@@ -1,0 +1,158 @@
+<?xml version="1.0" ?>
+<gpx version="1.1" creator="PoGo-Route-Optimizer">
+  <trk>
+    <name>Optimized Quests Route 2026-09-08</name>
+    <trkseg>
+      <trkpt lat="40.54197249" lon="-74.20621167">
+        <name>Verizon</name>
+      </trkpt>
+      <trkpt lat="40.541984" lon="-74.207097">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.564137" lon="-74.114275">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.575836" lon="-74.127474">
+        <name>Play! Pokémon Store</name>
+      </trkpt>
+      <trkpt lat="40.57782909" lon="-73.96234599">
+        <name>Verizon</name>
+      </trkpt>
+      <trkpt lat="40.57784143" lon="-73.96120404">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.610795" lon="-73.919635">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.65101517" lon="-73.86890579">
+        <name>Verizon</name>
+      </trkpt>
+      <trkpt lat="40.649948" lon="-73.782482">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.650003" lon="-73.7929411">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.66087273" lon="-73.72697426">
+        <name>Walmart</name>
+      </trkpt>
+      <trkpt lat="40.69110294" lon="-73.68453891">
+        <name>Verizon</name>
+      </trkpt>
+      <trkpt lat="40.727013" lon="-73.71402">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.739403" lon="-73.785484">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.778706" lon="-73.778013">
+        <name>GameStop</name>
+      </trkpt>
+      <trkpt lat="40.76071945" lon="-73.83050954">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.78640713" lon="-73.83586">
+        <name>Verizon</name>
+      </trkpt>
+      <trkpt lat="40.85114564" lon="-73.84407864">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.79569" lon="-73.93255">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.79381423" lon="-73.97277682">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.78114312" lon="-73.96662407">
+        <name>Verizon</name>
+      </trkpt>
+      <trkpt lat="40.77997791" lon="-73.97704344">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.77865" lon="-73.95604">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.7659124" lon="-73.95743308">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.77041396" lon="-73.95696697">
+        <name>Verizon</name>
+      </trkpt>
+      <trkpt lat="40.752445" lon="-73.9094">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.743453" lon="-73.91834635">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.726767" lon="-73.894172">
+        <name>Verizon</name>
+      </trkpt>
+      <trkpt lat="40.73053" lon="-73.95414">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.75019001" lon="-73.97465388">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.75764651" lon="-73.97101961">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.77139241" lon="-73.9824237">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.767033" lon="-73.983986">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.75779604" lon="-73.98251187">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.75698298" lon="-73.98093782">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.755463" lon="-73.98015">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.75412498" lon="-73.99250141">
+        <name>Verizon</name>
+      </trkpt>
+      <trkpt lat="40.75799862" lon="-73.98894971">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.757815" lon="-74.002465">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.7489585" lon="-73.99231501">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.741154" lon="-74.0013">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.73323" lon="-73.98082">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.73391512" lon="-73.98089189">
+        <name>Verizon</name>
+      </trkpt>
+      <trkpt lat="40.72449233" lon="-73.98771484">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.714732" lon="-73.998563">
+        <name>Play! Pokémon Store</name>
+      </trkpt>
+      <trkpt lat="40.68943" lon="-73.98091">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.702741" lon="-74.011186">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.71220388" lon="-74.00805192">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.71102554" lon="-74.01545811">
+        <name>Starbucks</name>
+      </trkpt>
+      <trkpt lat="40.71938166" lon="-74.04164866">
+        <name>Starbucks</name>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>
