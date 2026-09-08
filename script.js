@@ -1,14 +1,41 @@
 let questList = {};
+let pokedexMap = {}; // Maps Pokémon ID (string) to full Pokémon data object
+
+// Item ID to Name Mapping
+const ITEM_NAMES = {
+    "1": "Poké Ball",
+    "2": "Great Ball",
+    "3": "Ultra Ball",
+    "701": "Razz Berry",
+    "705": "Pinap Berry",
+    "706": "Golden Razz Berry",
+    "708": "Silver Pinap Berry",
+    "709": "Poffin",
+    "1301": "Rare Candy",
+    "1302": "Rare Candy XL"
+};
 
 async function init() {
     try {
-        const res = await fetch('./JSON/Quest_List.json');
-        const data = await res.json();
-        questList = data.categories || {};
+        // Fetch Quest List and Pokedex concurrently
+        const [questRes, pokedexRes] = await Promise.all([
+            fetch('./JSON/Quest_List.json'),
+            fetch('./JSON/pokedex.json')
+        ]);
+
+        const questData = await questRes.json();
+        const pokedexData = await pokedexRes.json();
+
+        questList = questData.categories || {};
+
+        // Build quick-lookup map for Pokedex (key: string ID)
+        pokedexData.forEach(pkmn => {
+            pokedexMap[String(pkmn.id)] = pkmn;
+        });
         
         renderCards();
     } catch (err) {
-        alert('Error loading Quest_List.json: ' + err.message);
+        alert('Error loading JSON files: ' + err.message);
     }
 }
 
@@ -26,7 +53,7 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
     const container = document.createElement('div');
     container.className = 'checkboxes-container';
 
-    // Prevent clicks inside the container from bubbling up and closing the dropdown
+    // Prevent clicks inside container from bubbling up
     container.addEventListener('click', (e) => {
         e.stopPropagation();
     });
@@ -47,7 +74,7 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
     actions.appendChild(clearAll);
     container.appendChild(actions);
 
-    // Populate Checkbox Options (Fallback if conditions array is empty/null)
+    // Populate Checkbox Options
     const optionsToRender = (conditions && conditions.length > 0) ? conditions : ["No Conditions"];
     const checkboxes = [];
 
@@ -72,7 +99,7 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
 
     wrapper.appendChild(container);
 
-    // Toggle dropdown open/close on header click
+    // Toggle dropdown
     selectBox.addEventListener('click', (e) => {
         e.stopPropagation();
         document.querySelectorAll('.checkboxes-container.show').forEach(el => {
@@ -127,7 +154,7 @@ function renderCards() {
 
                 const label = document.createElement('span');
                 label.className = 'row-label';
-                label.textContent = `${stardustAmount} Stardust`;
+                label.textContent = stardustAmount;
 
                 const customDropdown = createCheckboxDropdown('3', '0', stardustAmount, conditions);
 
@@ -135,16 +162,75 @@ function renderCards() {
                 row.appendChild(customDropdown);
                 container.appendChild(row);
             });
+        } else if (cat === '7' || cat === '12') {
+            // Pokémon Encounters (7) & Mega Energy (12) Flat Row Layout
+            const level2Obj = questList[cat] || {};
+            
+            Object.keys(level2Obj).forEach(pokemonId => {
+                const pokemonData = pokedexMap[pokemonId];
+                const pokemonName = pokemonData?.name?.english || `ID: ${pokemonId}`;
+                const iconSrc = pokemonData?.image?.hires || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`;
+
+                // Extract conditions from nested level 3 (amount is usually 1 for encounters, 10 for Mega Energy)
+                const level3Obj = level2Obj[pokemonId] || {};
+                const amountKey = Object.keys(level3Obj)[0] || (cat === '12' ? '10' : '1');
+                const conditions = level3Obj[amountKey] || [];
+
+                const row = document.createElement('div');
+                row.className = 'row-item';
+
+                // Label Wrapper with Pokémon Image Icon and Name
+                const labelWrapper = document.createElement('div');
+                labelWrapper.className = 'row-label-wrapper';
+
+                const iconImg = document.createElement('img');
+                iconImg.src = iconSrc;
+                iconImg.alt = pokemonName;
+                iconImg.className = 'encounter-icon';
+                labelWrapper.appendChild(iconImg);
+
+                const labelText = document.createElement('span');
+                labelText.className = 'row-label';
+                labelText.textContent = pokemonName;
+                labelWrapper.appendChild(labelText);
+
+                const customDropdown = createCheckboxDropdown(cat, pokemonId, amountKey, conditions);
+
+                row.appendChild(labelWrapper);
+                row.appendChild(customDropdown);
+                container.appendChild(row);
+            });
         } else {
-            // Accordion Layout for t2, t7, t12
+            // Accordion Layout for Items (2)
             const level2Obj = questList[cat] || {};
             Object.keys(level2Obj).forEach(l2Id => {
                 const level3Obj = level2Obj[l2Id] || {};
                 
                 const accBtn = document.createElement('button');
                 accBtn.className = 'accordion';
-                accBtn.textContent = `ID: ${l2Id}`;
                 
+                let displayName = `ID: ${l2Id}`;
+                let iconFileName = "";
+
+                if (cat === '2' && ITEM_NAMES[l2Id]) {
+                    displayName = ITEM_NAMES[l2Id];
+                    iconFileName = displayName.replace(/ /g, '_') + '.png';
+                }
+
+                const headerTitle = document.createElement('span');
+                headerTitle.className = 'accordion-title';
+
+                if (iconFileName) {
+                    const iconImg = document.createElement('img');
+                    iconImg.src = `assets/icons/${iconFileName}`;
+                    iconImg.alt = displayName;
+                    iconImg.className = 'accordion-icon';
+                    headerTitle.appendChild(iconImg);
+                }
+
+                headerTitle.appendChild(document.createTextNode(displayName));
+                accBtn.appendChild(headerTitle);
+
                 const panel = document.createElement('div');
                 panel.className = 'panel';
 

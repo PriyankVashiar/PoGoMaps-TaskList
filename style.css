@@ -37,6 +37,8 @@ h1 {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
+    position: relative; /* Allows absolute dropdowns to position relative to card bounds */
+    height: 675px; /* Fixed height ensures uniform cards with ample empty space at bottom */
 }
 
 .card-header {
@@ -46,14 +48,25 @@ h1 {
     border-bottom: 2px solid var(--border-color);
     padding-bottom: 10px;
     margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
+.header-icon {
+    width: 25px;
+    height: 25px;
+    object-fit: contain;
+}
+
+/* Card Body Fix: Allow absolute dropdowns to bleed over empty space without clipping */
 .card-body {
-    max-height: 450px;
+    flex-grow: 1;
     overflow-y: auto;
     overflow-x: visible;
     padding-right: 5px;
-    position: relative;
+    position: static; /* Unset positioning so dropdowns anchor to .custom-multiselect */
 }
 
 .card-body::-webkit-scrollbar { width: 6px; }
@@ -78,6 +91,18 @@ h1 {
     justify-content: space-between;
     align-items: center;
     box-sizing: border-box;
+}
+
+.accordion-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.accordion-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
 }
 
 .accordion:hover, .accordion.active {
@@ -120,6 +145,19 @@ h1 {
 
 .row-item:last-child {
     border-bottom: none;
+}
+
+.row-label-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 130px;
+}
+
+.encounter-icon {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
 }
 
 .row-label {
