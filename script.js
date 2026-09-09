@@ -1,17 +1,18 @@
 let questList = {};
 let pokedexMap = {};
 
-const ITEM_NAMES = {
-    "1": "Poké Ball",
-    "2": "Great Ball",
-    "3": "Ultra Ball",
-    "701": "Razz Berry",
-    "705": "Pinap Berry",
-    "706": "Golden Razz Berry",
-    "708": "Silver Pinap Berry",
-    "709": "Poffin",
-    "1301": "Rare Candy",
-    "1302": "Rare Candy XL"
+// Exact mapping of Item IDs to filenames in assets/icons/
+const ITEM_DETAILS = {
+    "1": { name: "Poké Ball", file: "Poké_Ball.png" },
+    "2": { name: "Great Ball", file: "Great_Ball.png" },
+    "3": { name: "Ultra Ball", file: "Ultra_Ball.png" },
+    "701": { name: "Razz Berry", file: "Razz_Berry.png" },
+    "705": { name: "Pinap Berry", file: "Pinap_Berry.png" },
+    "706": { name: "Golden Razz Berry", file: "Golden_Razz_Berry.png" },
+    "708": { name: "Silver Pinap Berry", file: "Silver_Pinap_Berry.png" },
+    "709": { name: "Poffin", file: "Poffin.png" },
+    "1301": { name: "Rare Candy", file: "Rare_Candy.png" },
+    "1302": { name: "Rare Candy XL", file: "Rare_Candy_XL.png" }
 };
 
 async function init() {
@@ -181,7 +182,8 @@ function renderCards() {
             Object.keys(level2Obj).forEach(pokemonId => {
                 const pokemonData = pokedexMap[pokemonId];
                 const pokemonName = pokemonData?.name?.english || `ID: ${pokemonId}`;
-                const iconSrc = pokemonData?.image?.hires || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`;
+                
+                const iconSrc = `./assets/pokeapi-official-artwork/${pokemonId}.png`;
 
                 const level3Obj = level2Obj[pokemonId] || {};
                 const amountKey = Object.keys(level3Obj)[0] || (cat === '12' ? '10' : '1');
@@ -197,6 +199,8 @@ function renderCards() {
                 iconImg.src = iconSrc;
                 iconImg.alt = pokemonName;
                 iconImg.className = 'encounter-icon';
+                iconImg.onerror = function() { this.style.display = 'none'; };
+                
                 labelWrapper.appendChild(iconImg);
 
                 const labelText = document.createElement('span');
@@ -219,21 +223,22 @@ function renderCards() {
                 accBtn.className = 'accordion';
                 
                 let displayName = `ID: ${l2Id}`;
-                let iconFileName = "";
+                let iconUrl = "";
 
-                if (cat === '2' && ITEM_NAMES[l2Id]) {
-                    displayName = ITEM_NAMES[l2Id];
-                    iconFileName = displayName.replace(/ /g, '_') + '.png';
+                if (cat === '2' && ITEM_DETAILS[l2Id]) {
+                    displayName = ITEM_DETAILS[l2Id].name;
+                    iconUrl = `./assets/icons/${ITEM_DETAILS[l2Id].file}`;
                 }
 
                 const headerTitle = document.createElement('span');
                 headerTitle.className = 'accordion-title';
 
-                if (iconFileName) {
+                if (iconUrl) {
                     const iconImg = document.createElement('img');
-                    iconImg.src = `assets/icons/${iconFileName}`;
+                    iconImg.src = iconUrl;
                     iconImg.alt = displayName;
                     iconImg.className = 'accordion-icon';
+                    iconImg.onerror = function() { this.style.display = 'none'; };
                     headerTitle.appendChild(iconImg);
                 }
 
@@ -357,9 +362,9 @@ async function generateAndDownloadGPX() {
                 return;
             }
 
-            // --- GPS Joystick Native Route XML Structure ---
+            // Updated GPX Structure: Removed xmlns and set creator to Priyank Vashiar
             let gpxStr = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-            gpxStr += `<gpx version="1.1" creator="GPS Joystick" xmlns="http://www.topografix.com/GPX/1/1">\n`;
+            gpxStr += `<gpx version="1.1" creator="Priyank Vashiar">\n`;
             gpxStr += `  <rte>\n`;
             gpxStr += `    <name>Manhattan Quest Route ${todayStr}</name>\n`;
 
