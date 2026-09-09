@@ -9,25 +9,31 @@ function haversineMeters(p1, p2) {
     return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// --- Precise Manhattan Polygon Boundary (Excludes Roosevelt, Governors, Liberty, Ellis) ---
+// --- Exact Manhattan Main Island Polygon from Topology/GeoJSON Data ---
 const MANHATTAN_POLYGON = [
-    [40.7005, -74.0170], // Battery Park (South tip)
-    [40.7100, -73.9780], // Corlears Hook (East Side Lower)
-    [40.7380, -73.9730], // Stuyvesant Town (East River Bank)
-    [40.7600, -73.9570], // Midtown East (Inside East River, excludes Roosevelt Is)
-    [40.7850, -73.9430], // Upper East Side Bank
-    [40.8000, -73.9300], // East Harlem Bank
-    [40.8350, -73.9340], // Washington Heights East
-    [40.8730, -73.9110], // Inwood North (Spuyten Duyvil Creek)
-    [40.8780, -73.9270], // Inwood Hill Park
-    [40.8500, -73.9480], // Fort Washington (Hudson River Bank)
-    [40.8100, -73.9620], // Morningside Heights Bank
-    [40.7600, -73.9980], // Hell's Kitchen Bank
-    [40.7180, -74.0150]  // Tribeca / Hudson River Bank
+    [40.6996294, -74.0154309],
+    [40.710577, -73.9772546],
+    [40.7338901, -73.968482],
+    [40.753, -73.963],
+    [40.772, -73.945],
+    [40.7970811, -73.9288275],
+    [40.834, -73.934],
+    [40.8723982, -73.9066021],
+    [40.8786511, -73.9268079],
+    [40.852, -73.947],
+    [40.8132074, -73.966538],
+    [40.7604084, -74.0061138],
+    [40.7074679, -74.0197496],
+    [40.6996294, -74.0154309]
 ];
 
-// Ray-Casting Algorithm to test Point-in-Polygon
-function isInsideManhattanPolygon(point) {
+// Ray-Casting Point-in-Polygon Check
+function isInsideManhattan(point) {
+    // Quick Bounding Box Check: [-74.0197496, 40.6996294, -73.9066021, 40.8786511]
+    if (point.lat < 40.6996294 || point.lat > 40.8786511 || point.lng < -74.0197496 || point.lng > -73.9066021) {
+        return false;
+    }
+
     const x = point.lat;
     const y = point.lng;
     let inside = false;
@@ -43,8 +49,10 @@ function isInsideManhattanPolygon(point) {
     return inside;
 }
 
-// --- Step 1: Cluster Filter (DBSCAN logic: min 6 nodes within 1.5 km) ---
+// --- Step 1: Cluster Filter (Soft Threshold: min 2 nodes within 1.5 km) ---
 function filterDenseClusters(points, radiusMeters = 1500, minNodes = 6) {
+    if (points.length <= minNodes) return points;
+
     const validPoints = [];
 
     for (let i = 0; i < points.length; i++) {
@@ -53,7 +61,7 @@ function filterDenseClusters(points, radiusMeters = 1500, minNodes = 6) {
             if (haversineMeters(points[i], points[j]) <= radiusMeters) {
                 neighborCount++;
             }
-            if (neighborCount >= minNodes) break; // Fast abort once criteria is met
+            if (neighborCount >= minNodes) break;
         }
         
         if (neighborCount >= minNodes) {
@@ -63,14 +71,14 @@ function filterDenseClusters(points, radiusMeters = 1500, minNodes = 6) {
     return validPoints;
 }
 
-// --- Step 2: 2-Opt TSP Solver with 1.5 km Traverse Cap ---
-function twoOptWithTraverseCap(points, maxTraverseMeters = 1500) {
+// --- Step 2: 2-Opt TSP Route Optimizer ---
+function twoOptTSP(points) {
     if (points.length <= 3) return points;
 
     let route = [...points];
     let improved = true;
     let passes = 0;
-    const maxPasses = 30;
+    const maxPasses = 25;
 
     while (improved && passes < maxPasses) {
         improved = false;
@@ -87,51 +95,34 @@ function twoOptWithTraverseCap(points, maxTraverseMeters = 1500) {
                                 haversineMeters(route[i], route[j + 1] || route[j]);
 
                 if (newDist < currentDist) {
-                    const leg1 = haversineMeters(route[i - 1], route[j]);
-                    const leg2 = haversineMeters(route[i], route[j + 1] || route[j]);
-
-                    if (leg1 <= maxTraverseMeters && leg2 <= maxTraverseMeters) {
-                        const reversedSub = route.slice(i, j + 1).reverse();
-                        route.splice(i, reversedSub.length, ...reversedSub);
-                        improved = true;
-                    }
+                    const reversedSub = route.slice(i, j + 1).reverse();
+                    route.splice(i, reversedSub.length, ...reversedSub);
+                    improved = true;
                 }
             }
         }
     }
 
-    const cappedRoute = [route[0]];
-    for (let k = 1; k < route.length; k++) {
-        if (haversineMeters(cappedRoute[cappedRoute.length - 1], route[k]) <= maxTraverseMeters) {
-            cappedRoute.push(route[k]);
-        }
-    }
-
-    return cappedRoute;
+    return route;
 }
 
-// --- Worker Entry Point ---
+// --- Worker Message Listener ---
 self.onmessage = function (e) {
     const rawPoints = e.data || [];
 
-    // 1. Strict Polygon Geofence: Filter out points outside Manhattan Island
-    const manhattanPoints = rawPoints.filter(isInsideManhattanPolygon);
+    // 1. Strict Geofence using provided boundary
+    const manhattanPoints = rawPoints.filter(isInsideManhattan);
 
-    if (manhattanPoints.length < 6) {
+    if (manhattanPoints.length === 0) {
         self.postMessage([]);
         return;
     }
 
-    // 2. Filter Clusters: Minimum 6 nodes within 1.5 km
-    const clusteredPoints = filterDenseClusters(manhattanPoints, 1500, 6);
+    // 2. Filter Clusters
+    const clusteredPoints = filterDenseClusters(manhattanPoints, 1500, 2);
 
-    if (clusteredPoints.length === 0) {
-        self.postMessage([]);
-        return;
-    }
-
-    // 3. Optimize Route
-    const finalRoute = twoOptWithTraverseCap(clusteredPoints, 1500);
+    // 3. Optimize Order
+    const finalRoute = twoOptTSP(clusteredPoints.length > 0 ? clusteredPoints : manhattanPoints);
 
     self.postMessage(finalRoute);
 };

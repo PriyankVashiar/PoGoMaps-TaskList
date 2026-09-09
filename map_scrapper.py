@@ -5,7 +5,8 @@ from datetime import datetime
 
 # Configuration
 BASE_URL = "https://nycpokemap.com/quests.php"
-JSON_DIR = os.path.join(os.path.dirname(__file__), "..", "JSON")
+# Fixed: Removed the ".." step to target PoGoMaps-TaskList/JSON directly
+JSON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "JSON")
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Referer": "https://nycpokemap.com/"

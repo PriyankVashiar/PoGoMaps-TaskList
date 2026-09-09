@@ -1,7 +1,6 @@
 let questList = {};
-let pokedexMap = {}; // Maps Pokémon ID (string) to full Pokémon data object
+let pokedexMap = {};
 
-// Item ID to Name Mapping
 const ITEM_NAMES = {
     "1": "Poké Ball",
     "2": "Great Ball",
@@ -17,7 +16,6 @@ const ITEM_NAMES = {
 
 async function init() {
     try {
-        // Fetch Quest List and Pokedex concurrently
         const [questRes, pokedexRes] = await Promise.all([
             fetch('./JSON/Quest_List.json'),
             fetch('./JSON/pokedex.json')
@@ -28,7 +26,6 @@ async function init() {
 
         questList = questData.categories || {};
 
-        // Build quick-lookup map for Pokedex (key: string ID)
         pokedexData.forEach(pkmn => {
             pokedexMap[String(pkmn.id)] = pkmn;
         });
@@ -43,22 +40,18 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
     const wrapper = document.createElement('div');
     wrapper.className = 'custom-multiselect';
 
-    // Select Box Display Button
     const selectBox = document.createElement('div');
     selectBox.className = 'select-box';
     selectBox.textContent = 'Select...';
     wrapper.appendChild(selectBox);
 
-    // Checkboxes Container
     const container = document.createElement('div');
     container.className = 'checkboxes-container';
 
-    // Prevent clicks inside container from bubbling up
     container.addEventListener('click', (e) => {
         e.stopPropagation();
     });
 
-    // Quick Actions: Select All / Clear All
     const actions = document.createElement('div');
     actions.className = 'multiselect-actions';
     
@@ -74,7 +67,6 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
     actions.appendChild(clearAll);
     container.appendChild(actions);
 
-    // Populate Checkbox Options
     const optionsToRender = (conditions && conditions.length > 0) ? conditions : ["No Conditions"];
     const checkboxes = [];
 
@@ -99,13 +91,11 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
 
     wrapper.appendChild(container);
 
-    // Toggle dropdown & handle direction dynamically based on space
     selectBox.addEventListener('click', (e) => {
         e.stopPropagation();
 
         const isShowing = container.classList.contains('show');
 
-        // Close all other open dropdowns
         document.querySelectorAll('.checkboxes-container.show').forEach(el => {
             if (el !== container) {
                 el.classList.remove('show', 'drop-up');
@@ -114,15 +104,12 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
 
         if (!isShowing) {
             container.classList.add('show');
-
-            // Check distance to the bottom of the parent card container
             const cardBody = wrapper.closest('.card-body');
             if (cardBody) {
                 const cardRect = cardBody.getBoundingClientRect();
                 const boxRect = selectBox.getBoundingClientRect();
-                const dropdownHeight = 200; // max-height of dropdown
+                const dropdownHeight = 200;
 
-                // If remaining space below the box is less than dropdown height, drop UP
                 const spaceBelow = cardRect.bottom - boxRect.bottom;
                 if (spaceBelow < dropdownHeight) {
                     container.classList.add('drop-up');
@@ -171,7 +158,6 @@ function renderCards() {
         container.innerHTML = '';
 
         if (cat === '3') {
-            // Stardust Card Layout
             const level2Obj = questList['3']['0'] || {};
             Object.keys(level2Obj).forEach(stardustAmount => {
                 const conditions = level2Obj[stardustAmount] || [];
@@ -190,7 +176,6 @@ function renderCards() {
                 container.appendChild(row);
             });
         } else if (cat === '7' || cat === '12') {
-            // Pokémon Encounters (7) & Mega Energy (12) Flat Row Layout
             const level2Obj = questList[cat] || {};
             
             Object.keys(level2Obj).forEach(pokemonId => {
@@ -198,7 +183,6 @@ function renderCards() {
                 const pokemonName = pokemonData?.name?.english || `ID: ${pokemonId}`;
                 const iconSrc = pokemonData?.image?.hires || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`;
 
-                // Extract conditions from nested level 3
                 const level3Obj = level2Obj[pokemonId] || {};
                 const amountKey = Object.keys(level3Obj)[0] || (cat === '12' ? '10' : '1');
                 const conditions = level3Obj[amountKey] || [];
@@ -206,7 +190,6 @@ function renderCards() {
                 const row = document.createElement('div');
                 row.className = 'row-item';
 
-                // Label Wrapper with Pokémon Image Icon and Name
                 const labelWrapper = document.createElement('div');
                 labelWrapper.className = 'row-label-wrapper';
 
@@ -228,7 +211,6 @@ function renderCards() {
                 container.appendChild(row);
             });
         } else {
-            // Accordion Layout for Items (2)
             const level2Obj = questList[cat] || {};
             Object.keys(level2Obj).forEach(l2Id => {
                 const level3Obj = level2Obj[l2Id] || {};
@@ -304,12 +286,11 @@ function renderCards() {
     });
 }
 
-// Close open dropdowns when clicking outside
 document.addEventListener('click', () => {
     document.querySelectorAll('.checkboxes-container.show').forEach(el => el.classList.remove('show', 'drop-up'));
 });
 
-// --- GPX Generator using Web Worker ---
+// --- GPX Generator Optimized for GPS Joystick by App Ninjas (RTE Format) ---
 async function generateAndDownloadGPX() {
     const activeFilters = new Set();
     const checkedBoxes = document.querySelectorAll('.custom-multiselect input[type="checkbox"]:checked');
@@ -348,7 +329,7 @@ async function generateAndDownloadGPX() {
                 matchedCoords.push({
                     lat: parseFloat(q.lat),
                     lng: parseFloat(q.lng),
-                    name: q.name || 'Pokestop'
+                    name: (q.name || 'Pokestop').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 });
             }
         });
@@ -358,12 +339,10 @@ async function generateAndDownloadGPX() {
             return;
         }
 
-        // Show loading state on button
         const btn = document.querySelector('.btn-generate');
         btn.textContent = 'Filtering Manhattan Clusters & Optimizing...';
         btn.disabled = true;
 
-        // Pass to Web Worker
         const worker = new Worker('./worker.js');
         worker.postMessage(matchedCoords);
 
@@ -378,17 +357,25 @@ async function generateAndDownloadGPX() {
                 return;
             }
 
+            // --- GPS Joystick Native Route XML Structure ---
             let gpxStr = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-            gpxStr += `<gpx version="1.1" creator="PoGo-Route-Optimizer">\n  <trk>\n    <name>Optimized Manhattan Route ${todayStr}</name>\n    <trkseg>\n`;
-            optimizedRoute.forEach(pt => {
-                gpxStr += `      <trkpt lat="${pt.lat}" lon="${pt.lng}">\n        <name>${pt.name}</name>\n      </trkpt>\n`;
+            gpxStr += `<gpx version="1.1" creator="GPS Joystick" xmlns="http://www.topografix.com/GPX/1/1">\n`;
+            gpxStr += `  <rte>\n`;
+            gpxStr += `    <name>Manhattan Quest Route ${todayStr}</name>\n`;
+
+            optimizedRoute.forEach((pt, index) => {
+                gpxStr += `    <rtept lat="${pt.lat}" lon="${pt.lng}">\n`;
+                gpxStr += `      <name>${index + 1}. ${pt.name}</name>\n`;
+                gpxStr += `    </rtept>\n`;
             });
-            gpxStr += `    </trkseg>\n  </trk>\n</gpx>`;
+
+            gpxStr += `  </rte>\n`;
+            gpxStr += `</gpx>`;
 
             const blob = new Blob([gpxStr], { type: 'application/gpx+xml' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `${todayStr}_manhattan_sorted.gpx`;
+            link.download = `${todayStr}_manhattan_route.gpx`;
             link.click();
 
             btn.textContent = 'Generate & Download GPX';
