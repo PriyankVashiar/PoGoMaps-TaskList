@@ -27,8 +27,11 @@ async function init() {
 
         questList = questData.categories || {};
 
+        // Normalize keys to lowercase strings to handle integer IDs and custom form strings (e.g. "58-2792", "79-g")
         pokedexData.forEach(pkmn => {
-            pokedexMap[String(pkmn.id)] = pkmn;
+            if (pkmn && pkmn.id !== undefined) {
+                pokedexMap[String(pkmn.id).toLowerCase()] = pkmn;
+            }
         });
         
         renderCards();
@@ -180,8 +183,18 @@ function renderCards() {
             const level2Obj = questList[cat] || {};
             
             Object.keys(level2Obj).forEach(pokemonId => {
-                const pokemonData = pokedexMap[pokemonId];
-                const pokemonName = pokemonData?.name?.english || `ID: ${pokemonId}`;
+                const normalizedId = String(pokemonId).toLowerCase();
+                const pokemonData = pokedexMap[normalizedId];
+                
+                // Safely extract name whether stored as string or object { english: "..." }
+                let pokemonName = `ID: ${pokemonId}`;
+                if (pokemonData?.name) {
+                    if (typeof pokemonData.name === 'string') {
+                        pokemonName = pokemonData.name;
+                    } else if (typeof pokemonData.name === 'object' && pokemonData.name.english) {
+                        pokemonName = pokemonData.name.english;
+                    }
+                }
                 
                 const iconSrc = `./assets/pokeapi-official-artwork/${pokemonId}.png`;
 
@@ -362,7 +375,6 @@ async function generateAndDownloadGPX() {
                 return;
             }
 
-            // Updated GPX Structure: Removed xmlns and set creator to Priyank Vashiar
             let gpxStr = `<?xml version="1.0" encoding="UTF-8"?>\n`;
             gpxStr += `<gpx version="1.1" creator="Priyank Vashiar">\n`;
             gpxStr += `  <rte>\n`;
