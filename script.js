@@ -18,8 +18,8 @@ const ITEM_DETAILS = {
 async function init() {
     try {
         const [questRes, pokedexRes] = await Promise.all([
-            fetch('./JSON/Quest_List.json'),
-            fetch('./JSON/pokedex.json')
+            fetch('./JSON/Quest_List.json?v=' + Date.now()),
+            fetch('./JSON/pokedex.json?v=' + Date.now())
         ]);
 
         const questData = await questRes.json();
