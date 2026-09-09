@@ -53,21 +53,6 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
         e.stopPropagation();
     });
 
-    const actions = document.createElement('div');
-    actions.className = 'multiselect-actions';
-    
-    const selectAll = document.createElement('span');
-    selectAll.className = 'action-link';
-    selectAll.textContent = 'Select All';
-    
-    const clearAll = document.createElement('span');
-    clearAll.className = 'action-link';
-    clearAll.textContent = 'Clear All';
-
-    actions.appendChild(selectAll);
-    actions.appendChild(clearAll);
-    container.appendChild(actions);
-
     const optionsToRender = (conditions && conditions.length > 0) ? conditions : ["No Conditions"];
     const checkboxes = [];
 
@@ -121,18 +106,6 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
         } else {
             container.classList.remove('show', 'drop-up');
         }
-    });
-
-    selectAll.addEventListener('click', (e) => {
-        e.stopPropagation();
-        checkboxes.forEach(cb => cb.checked = true);
-        updateBoxText();
-    });
-
-    clearAll.addEventListener('click', (e) => {
-        e.stopPropagation();
-        checkboxes.forEach(cb => cb.checked = false);
-        updateBoxText();
     });
 
     function updateBoxText() {
