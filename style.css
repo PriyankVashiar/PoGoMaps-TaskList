@@ -1,83 +1,133 @@
 :root {
-    --bg-color: #1e1e2e;
-    --card-bg: #313244;
-    --accent-color: #89b4fa;
-    --text-color: #cdd6f4;
-    --border-color: #45475a;
-    --button-bg: #a6e3a1;
-    --button-hover: #94e2d5;
-    --dropdown-bg: #262738;
+    --bg-color: #000000;         /* True AMOLED Pitch Black */
+    --card-bg: #0b0c10;         /* Elevated surface near black */
+    --dropdown-bg: #12141d;     /* Deep dark background for inputs/panels */
+    --accent-color: #38bdf8;     /* Electric vibrant cyan */
+    --text-color: #38bdf8;       /* All text turned to Cyan */
+    --text-muted: #0284c7;       /* Muted cyan text */
+    --border-color: #1f2430;     /* High-contrast separator */
+    --button-bg: #10b981;       /* Electric Emerald Green */
+    --button-hover: #059669;
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
-    padding: 20px;
+    padding: 12px 16px;
     background-color: var(--bg-color);
     color: var(--text-color);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
 }
 
-/* Header Container with Inline City Dropdown */
+/* Header Container Layout */
 .header-container {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
     gap: 16px;
-    margin-bottom: 25px;
-    padding: 10px 0;
+    margin-bottom: 12px;
+    padding: 4px 0;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
 }
 
 .main-title {
-    color: var(--accent-color);
-    font-size: 2rem;
-    font-weight: 700;
+    color: var(--text-color);
+    font-size: 1.5rem;
+    font-weight: 800;
     margin: 0;
+    letter-spacing: -0.5px;
 }
 
+/* City Dropdown with Cyan SVG Arrow and Visible Border */
 .city-dropdown {
-    background-color: #ffffff;
-    color: #2d3748;
-    font-size: 15px;
-    font-weight: 500;
-    padding: 6px 12px;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    background-color: var(--dropdown-bg);
+    color: var(--text-color);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 36px 8px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
     outline: none;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px;
 }
 
-.city-dropdown:hover, .city-dropdown:focus {
+.city-dropdown option {
+    background-color: var(--dropdown-bg);
+    color: var(--text-color);
+}
+
+.city-dropdown:hover, 
+.city-dropdown:focus {
     border-color: var(--accent-color);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+/* Header Generate Button */
+.btn-generate {
+    background-color: var(--button-bg);
+    color: #000000;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px 22px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+}
+
+.btn-generate:hover {
+    background-color: var(--button-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.45);
+}
+
+.btn-generate:active {
+    transform: translateY(0);
 }
 
 /* Card Grid Layout */
 .cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
 }
 
+/* Dynamic Full-Height Card */
 .card {
     background-color: var(--card-bg);
-    border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9);
     display: flex;
     flex-direction: column;
     position: relative;
-    height: 675px;
+    height: calc(100vh - 85px); /* Scales cards to take remaining screen height */
+    box-sizing: border-box;
 }
 
 .card-header {
-    font-size: 1.25rem;
-    font-weight: bold;
-    color: var(--accent-color);
-    border-bottom: 2px solid var(--border-color);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 10px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -85,54 +135,57 @@ body {
 }
 
 .header-icon {
-    width: 25px;
-    height: 25px;
+    width: 24px;
+    height: 24px;
     object-fit: contain;
 }
 
-/* Card Body Fix: Allow dropdowns to overflow */
+/* Card Body Scrollable Area */
 .card-body {
     flex-grow: 1;
     overflow-y: auto;
     overflow-x: visible;
-    padding-right: 5px;
+    padding-right: 4px;
     position: static;
+    color: var(--text-color);
 }
 
 .card-body::-webkit-scrollbar { 
-    width: 6px; 
+    width: 4px; 
 }
 
 .card-body::-webkit-scrollbar-thumb { 
     background: var(--border-color); 
-    border-radius: 3px; 
+    border-radius: 4px; 
 }
 
-/* Accordion Styles */
+/* Accordion Component Styles */
 .accordion {
-    background-color: var(--border-color);
+    background-color: var(--dropdown-bg);
     color: var(--text-color);
     cursor: pointer;
-    padding: 12px 15px;
+    padding: 12px 14px;
     width: 100%;
-    border: none;
+    border: 1px solid var(--border-color);
     text-align: left;
     outline: none;
-    font-size: 15px;
-    transition: 0.3s;
-    border-radius: 6px;
+    font-size: 14px;
+    transition: background-color 0.2s, border-color 0.2s;
+    border-radius: 8px;
     margin-top: 8px;
     font-weight: 600;
     display: flex;
     justify-content: space-between;
     align-items: center;
     box-sizing: border-box;
+    min-height: 44px;
 }
 
 .accordion-title {
     display: flex;
     align-items: center;
     gap: 10px;
+    color: var(--text-color);
 }
 
 .accordion-icon {
@@ -141,14 +194,18 @@ body {
     object-fit: contain;
 }
 
-.accordion:hover, .accordion.active {
-    background-color: var(--accent-color);
-    color: #11111b;
+.accordion:hover, 
+.accordion.active {
+    background-color: rgba(56, 189, 248, 0.12);
+    border-color: var(--accent-color);
+    color: var(--text-color);
 }
 
 .accordion:after {
     content: '\002B';
     font-weight: bold;
+    font-size: 18px;
+    color: var(--text-color);
 }
 
 .accordion.active:after {
@@ -156,19 +213,22 @@ body {
 }
 
 .panel {
-    padding: 0 10px;
-    background-color: var(--dropdown-bg);
+    padding: 0 12px;
+    background-color: #050608;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-top: none;
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.25s ease-out;
-    border-radius: 0 0 6px 6px;
+    border-radius: 0 0 8px 8px;
 }
 
 .panel.open-overflow {
     overflow: visible !important;
 }
 
-/* Form Row Layout */
+/* Row Layout */
 .row-item {
     display: flex;
     align-items: center;
@@ -177,6 +237,7 @@ body {
     border-bottom: 1px solid var(--border-color);
     gap: 10px;
     position: relative;
+    color: var(--text-color);
 }
 
 .row-item:last-child {
@@ -187,22 +248,22 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-width: 130px;
+    min-width: 120px;
 }
 
 .encounter-icon {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     object-fit: contain;
 }
 
 .row-label {
     font-size: 14px;
     font-weight: 500;
-    min-width: 90px;
+    color: var(--text-color);
 }
 
-/* Custom Checkbox Dropdown Styles */
+/* Custom Multiselect Box */
 .custom-multiselect {
     position: relative;
     flex-grow: 1;
@@ -214,9 +275,10 @@ body {
 }
 
 .select-box {
-    background-color: var(--card-bg);
+    background-color: var(--dropdown-bg);
+    color: var(--text-color);
     border: 1px solid var(--border-color);
-    border-radius: 5px;
+    border-radius: 6px;
     padding: 8px 12px;
     cursor: pointer;
     display: flex;
@@ -224,11 +286,13 @@ body {
     align-items: center;
     font-size: 13px;
     user-select: none;
+    min-height: 40px;
+    box-sizing: border-box;
 }
 
 .select-box:after {
     content: '▼';
-    font-size: 10px;
+    font-size: 9px;
     margin-left: 8px;
     color: var(--text-color);
 }
@@ -239,44 +303,47 @@ body {
     top: 100%;
     left: 0;
     right: 0;
-    background-color: var(--card-bg);
+    background-color: var(--dropdown-bg);
+    color: var(--text-color);
     border: 1px solid var(--border-color);
-    border-radius: 5px;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.95);
     z-index: 1001;
-    max-height: 200px;
+    max-height: 220px;
     overflow-y: auto;
-    padding: 5px 0;
-    margin-top: 2px;
+    padding: 6px 0;
+    margin-top: 4px;
 }
 
 .checkboxes-container.show {
     display: block;
 }
 
-/* Drop-up positioning near card bottom */
 .checkboxes-container.drop-up {
     top: auto;
     bottom: 100%;
     margin-top: 0;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
 }
 
 .checkbox-option {
     display: flex;
     align-items: center;
-    padding: 6px 12px;
+    padding: 8px 14px;
     cursor: pointer;
     font-size: 13px;
-    transition: background 0.2s;
+    color: var(--text-color);
+    transition: background-color 0.15s;
 }
 
 .checkbox-option:hover {
-    background-color: var(--border-color);
+    background-color: rgba(56, 189, 248, 0.1);
 }
 
 .checkbox-option input[type="checkbox"] {
     margin-right: 10px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
     accent-color: var(--accent-color);
 }
@@ -284,35 +351,44 @@ body {
 .multiselect-actions {
     display: flex;
     justify-content: space-between;
-    padding: 4px 12px;
+    padding: 6px 14px;
     border-bottom: 1px solid var(--border-color);
-    font-size: 11px;
+    font-size: 12px;
+    color: var(--text-color);
 }
 
 .action-link {
-    color: var(--accent-color);
+    color: var(--text-color);
     cursor: pointer;
+    font-weight: 600;
+}
+
+.action-link:hover {
     text-decoration: underline;
 }
 
-/* Footer Controls */
-.controls-panel {
-    text-align: center;
-    margin-top: 10px;
-}
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
 
-.btn-generate {
-    background-color: var(--button-bg);
-    color: #11111b;
-    font-size: 16px;
-    font-weight: bold;
-    padding: 12px 30px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
+    .header-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
 
-.btn-generate:hover {
-    background-color: var(--button-hover);
+    .header-left {
+        justify-content: space-between;
+    }
+
+    .btn-generate {
+        width: 100%;
+        text-align: center;
+    }
+
+    .card {
+        height: auto;
+        max-height: 80vh;
+    }
 }

@@ -8,16 +8,19 @@
 </head>
 <body>
 
-    <!-- Header Container with Inline City Dropdown -->
+    <!-- Header Toolbar with Inline City Dropdown & Top-Right Action Button -->
     <header class="header-container">
-        <select id="city-select" class="city-dropdown" onchange="onCityChange()">
-            <option value="https://nycpokemap.com" selected>New York</option>
-            <option value="https://vanpokemap.com">Vancouver</option>
-            <option value="https://sgpokemap.com">Singapore</option>
-            <option value="https://sydneypogomap.com">Sydney</option>
-            <option value="https://londonpogomap.com">London</option>
-        </select>
-        <h1 class="main-title">Pokémon Go Route Generator</h1>
+        <div class="header-left">
+            <select id="city-select" class="city-dropdown" onchange="onCityChange()">
+                <option value="https://nycpokemap.com" selected>New York</option>
+                <option value="https://vanpokemap.com">Vancouver</option>
+                <option value="https://sgpokemap.com">Singapore</option>
+                <option value="https://sydneypogomap.com">Sydney</option>
+                <option value="https://londonpogomap.com">London</option>
+            </select>
+            <h1 class="main-title">Pokémon Go Route Generator</h1>
+        </div>
+        <button class="btn-generate" onclick="generateAndDownloadGPX()">Generate & Download GPX</button>
     </header>
 
     <div class="cards-grid">
@@ -56,10 +59,6 @@
             </div>
             <div class="card-body" id="card-12"></div>
         </div>
-    </div>
-
-    <div class="controls-panel">
-        <button class="btn-generate" onclick="generateAndDownloadGPX()">Generate & Download GPX</button>
     </div>
 
     <script src="script.js"></script>
