@@ -75,6 +75,35 @@ body {
     box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
 }
 
+.btn-group {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* Space between buttons */
+}
+
+.donate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  background-color: #000000; /* AMOLED black */
+  color: #ffdd00; /* Yellow text */
+  border: 1px solid #00e5ff; /* Cyan border */
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-sizing: border-box;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.donate-btn:hover {
+  background-color: rgba(0, 229, 255, 0.1); /* Subtle cyan glow on hover */
+  border-color: #00ffff;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+}
+
 /* Header Generate Button */
 .btn-generate {
     background-color: var(--button-bg);
