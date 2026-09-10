@@ -371,14 +371,14 @@ async function generateAndDownloadGPX() {
     btn.disabled = true;
 
     try {
-        // Build path to the local city_YYYY-MM-DD.json file
+        // Build path directly to the static city_quests.json file
         const todayStr = new Date().toISOString().split('T')[0];
-        const questJsonUrl = `./JSON/${city.fileSlug}_${todayStr}.json?v=` + Date.now();
+        const questJsonUrl = `./JSON/${city.fileSlug}_quests.json?v=` + Date.now();
         
         const res = await fetch(questJsonUrl);
         
         if (!res.ok) {
-            throw new Error(`Could not load daily quest data for ${city.name} (${city.fileSlug}_${todayStr}.json).`);
+            throw new Error(`Could not load quest data for ${city.name} (${city.fileSlug}_quests.json).`);
         }
         
         const data = await res.json();

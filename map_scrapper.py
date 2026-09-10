@@ -1,7 +1,6 @@
 import os
 import sys
 import json
-import glob
 import requests
 from datetime import datetime
 
@@ -92,15 +91,8 @@ def fetch_current_quests(city_key, city_config, quest_list):
     response.encoding = 'utf-8'
     current_quests_data = response.json()
 
-    # Clean up previous daily files for this specific city
-    for old_file in glob.glob(os.path.join(JSON_DIR, f"{city_key}_*.json")):
-        try:
-            os.remove(old_file)
-        except OSError:
-            pass
-
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    out_filename = f"{city_key}_{today_str}.json"
+    # Save output to static JSON filename (overwrites automatically)
+    out_filename = f"{city_key}_quests.json"
     out_path = os.path.join(JSON_DIR, out_filename)
 
     with open(out_path, "w", encoding="utf-8") as f:
