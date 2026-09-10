@@ -5,11 +5,11 @@ let timerInterval = null;
 // City configurations matching the dropdown options, scraper file prefixes,
 // and UTC refresh times (Set these to match your run_scraper.yml cron schedules)
 const CITY_CONFIGS = {
-    "https://nycpokemap.com": { cityKey: "nyc", name: "New York", fileSlug: "nyc", refreshUtcHour: 5, refreshUtcMinute: 0 },
-    "https://vanpokemap.com": { cityKey: "vancouver", name: "Vancouver", fileSlug: "vc", refreshUtcHour: 8, refreshUtcMinute: 0 },
-    "https://sgpokemap.com": { cityKey: "singapore", name: "Singapore", fileSlug: "sg", refreshUtcHour: 17, refreshUtcMinute: 0 },
-    "https://sydneypogomap.com": { cityKey: "sydney", name: "Sydney", fileSlug: "syd", refreshUtcHour: 15, refreshUtcMinute: 0 },
-    "https://londonpogomap.com": { cityKey: "london", name: "London", fileSlug: "uk", refreshUtcHour: 1, refreshUtcMinute: 0 }
+    "https://nycpokemap.com": { cityKey: "nyc", name: "New York", fileSlug: "nyc", refreshUtcHour: 4, refreshUtcMinute: 18 },
+    "https://vanpokemap.com": { cityKey: "vancouver", name: "Vancouver", fileSlug: "vc", refreshUtcHour: 7, refreshUtcMinute: 18 },
+    "https://sgpokemap.com": { cityKey: "singapore", name: "Singapore", fileSlug: "sg", refreshUtcHour: 16, refreshUtcMinute: 18 },
+    "https://sydneypogomap.com": { cityKey: "sydney", name: "Sydney", fileSlug: "syd", refreshUtcHour: 14, refreshUtcMinute: 18 },
+    "https://londonpogomap.com": { cityKey: "london", name: "London", fileSlug: "uk", refreshUtcHour: 0, refreshUtcMinute: 18 }
 };
 
 // Exact mapping of Item IDs to filenames in assets/icons/

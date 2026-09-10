@@ -2,12 +2,12 @@ name: Daily Map Scraper
 
 on:
   schedule:
-    # 1:00 AM local time schedules converted to UTC:
-    - cron: '0 17 * * *' # 1:00 AM SGT (Singapore)
-    - cron: '0 15 * * *' # 1:00 AM AEST (Sydney)
-    - cron: '0 1 * * *'  # 1:00 AM GMT (London / UK)
-    - cron: '0 5 * * *'  # 1:00 AM EDT (New York)
-    - cron: '0 8 * * *'  # 1:00 AM PDT (Vancouver)
+    # 12:18 AM local time schedules converted to UTC:
+    - cron: '18 16 * * *' # 12:18 AM SGT (Singapore)
+    - cron: '18 14 * * *' # 12:18 AM AEST (Sydney)
+    - cron: '18 0 * * *'  # 12:18 AM GMT (London / UK)
+    - cron: '18 4 * * *'  # 12:18 AM EDT (New York)
+    - cron: '18 7 * * *'  # 12:18 AM PDT (Vancouver)
   workflow_dispatch:
     inputs:
       target_city:
@@ -42,11 +42,11 @@ jobs:
             TARGET="${{ github.event.inputs.target_city }}"
           else
             case "${{ github.event.schedule }}" in
-              "0 17 * * *") TARGET="sg" ;;
-              "0 15 * * *") TARGET="syd" ;;
-              "0 1 * * *") TARGET="uk" ;;
-              "0 5 * * *") TARGET="nyc" ;;
-              "0 8 * * *") TARGET="vc" ;;
+              "18 16 * * *") TARGET="sg" ;;
+              "18 14 * * *") TARGET="syd" ;;
+              "18 0 * * *") TARGET="uk" ;;
+              "18 4 * * *") TARGET="nyc" ;;
+              "18 7 * * *") TARGET="vc" ;;
               *) TARGET="all" ;;
             esac
           fi
