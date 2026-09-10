@@ -8,7 +8,17 @@
 </head>
 <body>
 
-    <h1>Pokémon Go Route Generator</h1>
+    <!-- Header Container with Inline City Dropdown -->
+    <header class="header-container">
+        <select id="city-select" class="city-dropdown" onchange="onCityChange()">
+            <option value="https://nycpokemap.com" selected>New York</option>
+            <option value="https://vanpokemap.com">Vancouver</option>
+            <option value="https://sgpokemap.com">Singapore</option>
+            <option value="https://sydneypogomap.com">Sydney</option>
+            <option value="https://londonpogomap.com">London</option>
+        </select>
+        <h1 class="main-title">Pokémon Go Route Generator</h1>
+    </header>
 
     <div class="cards-grid">
         <!-- Item Card -->

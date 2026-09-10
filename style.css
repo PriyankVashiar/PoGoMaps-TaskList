@@ -17,12 +17,42 @@ body {
     color: var(--text-color);
 }
 
-h1 {
-    text-align: center;
-    color: var(--accent-color);
+/* Header Container with Inline City Dropdown */
+.header-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
     margin-bottom: 25px;
+    padding: 10px 0;
 }
 
+.main-title {
+    color: var(--accent-color);
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.city-dropdown {
+    background-color: #ffffff;
+    color: #2d3748;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.city-dropdown:hover, .city-dropdown:focus {
+    border-color: var(--accent-color);
+}
+
+/* Card Grid Layout */
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -37,8 +67,8 @@ h1 {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
-    position: relative; /* Allows absolute dropdowns to position relative to card bounds */
-    height: 675px; /* Fixed height ensures uniform cards with ample empty space at bottom */
+    position: relative;
+    height: 675px;
 }
 
 .card-header {
@@ -60,17 +90,23 @@ h1 {
     object-fit: contain;
 }
 
-/* Card Body Fix: Allow absolute dropdowns to bleed over empty space without clipping */
+/* Card Body Fix: Allow dropdowns to overflow */
 .card-body {
     flex-grow: 1;
     overflow-y: auto;
     overflow-x: visible;
     padding-right: 5px;
-    position: static; /* Unset positioning so dropdowns anchor to .custom-multiselect */
+    position: static;
 }
 
-.card-body::-webkit-scrollbar { width: 6px; }
-.card-body::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+.card-body::-webkit-scrollbar { 
+    width: 6px; 
+}
+
+.card-body::-webkit-scrollbar-thumb { 
+    background: var(--border-color); 
+    border-radius: 3px; 
+}
 
 /* Accordion Styles */
 .accordion {
@@ -216,6 +252,14 @@ h1 {
 
 .checkboxes-container.show {
     display: block;
+}
+
+/* Drop-up positioning near card bottom */
+.checkboxes-container.drop-up {
+    top: auto;
+    bottom: 100%;
+    margin-top: 0;
+    margin-bottom: 2px;
 }
 
 .checkbox-option {

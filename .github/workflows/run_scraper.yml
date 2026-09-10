@@ -2,9 +2,18 @@ name: Daily Map Scraper
 
 on:
   schedule:
-    # Triggers every day at 5:00 AM UTC
-    - cron: '0 5 * * *'
+    # 1:00 AM local time schedules converted to UTC:
+    - cron: '0 17 * * *' # 1:00 AM SGT (Singapore)
+    - cron: '0 15 * * *' # 1:00 AM AEST (Sydney)
+    - cron: '0 1 * * *'  # 1:00 AM GMT (London / UK)
+    - cron: '0 5 * * *'  # 1:00 AM EDT (New York)
+    - cron: '0 8 * * *'  # 1:00 AM PDT (Vancouver)
   workflow_dispatch:
+    inputs:
+      target_city:
+        description: 'City to scrape (nyc, vc, sg, syd, uk, or all)'
+        required: true
+        default: 'all'
 
 permissions:
   contents: write
@@ -27,13 +36,23 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Clean Old Quests JSON Files
+      - name: Determine Target City & Run Scraper
         run: |
-          echo "Removing previous daily quest files..."
-          rm -f JSON/quests_*.json
-
-      - name: Run Scraper
-        run: python map_scrapper.py
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET="${{ github.event.inputs.target_city }}"
+          else
+            case "${{ github.event.schedule }}" in
+              "0 17 * * *") TARGET="sg" ;;
+              "0 15 * * *") TARGET="syd" ;;
+              "0 1 * * *") TARGET="uk" ;;
+              "0 5 * * *") TARGET="nyc" ;;
+              "0 8 * * *") TARGET="vc" ;;
+              *) TARGET="all" ;;
+            esac
+          fi
+          
+          echo "Running scraper for target: $TARGET"
+          python map_scraper.py $TARGET
 
       - name: Commit and Push Generated JSON
         run: |

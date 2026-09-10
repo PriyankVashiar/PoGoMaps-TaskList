@@ -1,84 +1,106 @@
 import os
+import sys
 import json
+import glob
 import requests
 from datetime import datetime
 
-# Configuration
-BASE_URL = "https://nycpokemap.com/quests.php"
-# Fixed: Removed the ".." step to target PoGoMaps-TaskList/JSON directly
-JSON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "JSON")
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Referer": "https://nycpokemap.com/"
+# Configured city endpoints and file prefixes
+CITIES = {
+    "nyc": {"name": "New York", "url": "https://nycpokemap.com"},
+    "vc": {"name": "Vancouver", "url": "https://vanpokemap.com"},
+    "sg": {"name": "Singapore", "url": "https://sgpokemap.com"},
+    "syd": {"name": "Sydney", "url": "https://sydneypogomap.com"},
+    "uk": {"name": "London/UK", "url": "https://londonpogomap.com"}
 }
+
+JSON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "JSON")
 
 def ensure_json_dir():
     os.makedirs(JSON_DIR, exist_ok=True)
 
-def step1_fetch_filters():
-    print("Step 1: Fetching initial filters & initializing Quest_List.json...")
+def load_or_init_quest_list():
+    quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
+    if os.path.exists(quest_list_path):
+        try:
+            with open(quest_list_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"categories": {}}
+
+def fetch_filters(city_config):
+    base_url = f"{city_config['url']}/quests.php"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": f"{city_config['url']}/"
+    }
     params = {
         "quests[]": "7,0,113",
         "time": int(datetime.now().timestamp() * 1000)
     }
     
-    response = requests.get(BASE_URL, params=params, headers=HEADERS)
+    response = requests.get(base_url, params=params, headers=headers)
     response.raise_for_status()
-    data = response.json()
-    
-    filters = data.get("filters", {})
+    return response.json().get("filters", {})
+
+def update_quest_list_structure(quest_list, filters):
     categories_to_keep = ["t2", "t3", "t7", "t12"]
-    
-    quest_list = {"categories": {}}
+    categories = quest_list.setdefault("categories", {})
 
     for cat_key in categories_to_keep:
         clean_cat = cat_key.replace("t", "")
-        quest_list["categories"][clean_cat] = {}
+        if clean_cat not in categories:
+            categories[clean_cat] = {}
 
         if cat_key in filters and isinstance(filters[cat_key], list):
             if clean_cat == "3":
-                # For t3 (Stardust): level1 -> "0" -> { level2_amount: [] }
-                quest_list["categories"][clean_cat]["0"] = {}
+                stardust_dict = categories[clean_cat].setdefault("0", {})
                 for amount in filters[cat_key]:
-                    quest_list["categories"][clean_cat]["0"][str(amount)] = []
+                    amount_str = str(amount)
+                    if amount_str not in stardust_dict:
+                        stardust_dict[amount_str] = []
             else:
-                # For t2, t7, t12: level1 -> level2_id -> {}
                 for reward_id in filters[cat_key]:
-                    quest_list["categories"][clean_cat][str(reward_id)] = {}
+                    reward_str = str(reward_id)
+                    if reward_str not in categories[clean_cat]:
+                        categories[clean_cat][reward_str] = {}
 
-    quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
-    with open(quest_list_path, "w", encoding="utf-8") as f:
-        json.dump(quest_list, f, indent=2, ensure_ascii=False)
-    
-    print(f"Initialized: {quest_list_path}")
-    return quest_list
+def fetch_current_quests(city_key, city_config, quest_list):
+    base_url = f"{city_config['url']}/quests.php"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": f"{city_config['url']}/"
+    }
 
-def step2_fetch_current_quests(quest_list_structure):
-    print("Step 2: Fetching active quest coordinates...")
     quest_params = []
-    categories = quest_list_structure["categories"]
+    categories = quest_list.get("categories", {})
 
     for category, items in categories.items():
         if category == "3":
-            # For t3 (Stardust): "3, amount, 0"
             for stardust_amount in items.get("0", {}).keys():
                 quest_params.append(f"{category},{stardust_amount},0")
         else:
-            # For t2, t7, t12: "category, 0, reward_id"
             for reward_id in items.keys():
                 quest_params.append(f"{category},0,{reward_id}")
 
     payload = [("quests[]", param) for param in quest_params]
     payload.append(("time", int(datetime.now().timestamp() * 1000)))
 
-    response = requests.get(BASE_URL, params=payload, headers=HEADERS)
+    response = requests.get(base_url, params=payload, headers=headers)
     response.raise_for_status()
     response.encoding = 'utf-8'
-    
     current_quests_data = response.json()
 
+    # Clean up previous daily files for this specific city
+    for old_file in glob.glob(os.path.join(JSON_DIR, f"{city_key}_*.json")):
+        try:
+            os.remove(old_file)
+        except OSError:
+            pass
+
     today_str = datetime.now().strftime("%Y-%m-%d")
-    out_filename = f"quests_{today_str}.json"
+    out_filename = f"{city_key}_{today_str}.json"
     out_path = os.path.join(JSON_DIR, out_filename)
 
     with open(out_path, "w", encoding="utf-8") as f:
@@ -87,9 +109,8 @@ def step2_fetch_current_quests(quest_list_structure):
     print(f"Saved: {out_path}")
     return current_quests_data
 
-def step3_populate_quest_list(quest_list_structure, current_quests_data):
-    print("Step 3: Populating Quest_List.json with amounts and conditions...")
-    categories = quest_list_structure["categories"]
+def populate_quest_list(quest_list, current_quests_data):
+    categories = quest_list.get("categories", {})
     quests = current_quests_data.get("quests", [])
 
     for q in quests:
@@ -101,41 +122,55 @@ def step3_populate_quest_list(quest_list_structure, current_quests_data):
         if not cat or not condition:
             continue
 
-        # Map to category structure
         if cat in categories:
             if cat == "3":
-                # Stardust format: "3" -> "0" -> amount -> [conditions]
                 stardust_dict = categories["3"].setdefault("0", {})
                 if amount not in stardust_dict or isinstance(stardust_dict[amount], dict):
                     stardust_dict[amount] = []
                 if condition not in stardust_dict[amount]:
                     stardust_dict[amount].append(condition)
             else:
-                # Other format: cat -> reward_id -> amount -> [conditions]
                 reward_dict = categories[cat].setdefault(reward_id, {})
-                
-                # If reward_dict was initialized as empty dict {}, prepare amount key as array
-                if amount not in reward_dict:
-                    reward_dict[amount] = []
-                elif not isinstance(reward_dict[amount], list):
+                if amount not in reward_dict or not isinstance(reward_dict[amount], list):
                     reward_dict[amount] = []
 
                 if condition not in reward_dict[amount]:
                     reward_dict[amount].append(condition)
 
-    quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
-    with open(quest_list_path, "w", encoding="utf-8") as f:
-        json.dump(quest_list_structure, f, indent=2, ensure_ascii=False)
+def scrape_city(city_key, quest_list):
+    if city_key not in CITIES:
+        print(f"Unknown city key: {city_key}")
+        return
 
-    print(f"Updated with conditions: {quest_list_path}")
+    city_config = CITIES[city_key]
+    print(f"\n--- Scraping {city_config['name']} ({city_key}) ---")
+    
+    filters = fetch_filters(city_config)
+    update_quest_list_structure(quest_list, filters)
+    
+    current_quests = fetch_current_quests(city_key, city_config, quest_list)
+    populate_quest_list(quest_list, current_quests)
 
 def main():
     try:
         ensure_json_dir()
-        quest_list = step1_fetch_filters()
-        current_quests = step2_fetch_current_quests(quest_list)
-        step3_populate_quest_list(quest_list, current_quests)
+        quest_list = load_or_init_quest_list()
+
+        target = sys.argv[1].lower() if len(sys.argv) > 1 else "all"
+
+        if target == "all":
+            for city_key in CITIES.keys():
+                scrape_city(city_key, quest_list)
+        else:
+            scrape_city(target, quest_list)
+
+        quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
+        with open(quest_list_path, "w", encoding="utf-8") as f:
+            json.dump(quest_list, f, indent=2, ensure_ascii=False)
+
+        print(f"\nUpdated Master List: {quest_list_path}")
         print("Pipeline finished successfully!")
+
     except Exception as e:
         print(f"Error: {e}")
 

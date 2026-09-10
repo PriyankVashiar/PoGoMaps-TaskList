@@ -1,6 +1,15 @@
 let questList = {};
 let pokedexMap = {};
 
+// City configurations matching the dropdown options and scraper file prefixes
+const CITY_CONFIGS = {
+    "https://nycpokemap.com": { cityKey: "nyc", name: "New York", fileSlug: "nyc" },
+    "https://vanpokemap.com": { cityKey: "vancouver", name: "Vancouver", fileSlug: "vc" },
+    "https://sgpokemap.com": { cityKey: "singapore", name: "Singapore", fileSlug: "sg" },
+    "https://sydneypogomap.com": { cityKey: "sydney", name: "Sydney", fileSlug: "syd" },
+    "https://londonpogomap.com": { cityKey: "london", name: "London", fileSlug: "uk" }
+};
+
 // Exact mapping of Item IDs to filenames in assets/icons/
 const ITEM_DETAILS = {
     "1": { name: "Poké Ball", file: "Poké_Ball.png" },
@@ -13,6 +22,21 @@ const ITEM_DETAILS = {
     "709": { name: "Poffin", file: "Poffin.png" },
     "1301": { name: "Rare Candy", file: "Rare_Candy.png" },
     "1302": { name: "Rare Candy XL", file: "Rare_Candy_XL.png" }
+};
+
+function getSelectedCityConfig() {
+    const select = document.getElementById('city-select');
+    const url = select ? select.value : "https://nycpokemap.com";
+    return {
+        baseUrl: url,
+        ...(CITY_CONFIGS[url] || CITY_CONFIGS["https://nycpokemap.com"])
+    };
+}
+
+// Explicitly define on global window object so inline HTML onchange handles it reliably
+window.onCityChange = function onCityChange() {
+    const city = getSelectedCityConfig();
+    console.log(`City switched to: ${city.name} (${city.baseUrl})`);
 };
 
 async function init() {
@@ -33,7 +57,7 @@ async function init() {
         
         renderCards();
     } catch (err) {
-        alert('Error loading JSON files: ' + err.message);
+        alert('Error loading JSON configuration files: ' + err.message);
     }
 }
 
@@ -268,7 +292,7 @@ document.addEventListener('click', () => {
     document.querySelectorAll('.checkboxes-container.show').forEach(el => el.classList.remove('show', 'drop-up'));
 });
 
-// --- GPX Generator Optimized for GPS Joystick by App Ninjas (RTE Format) ---
+// --- GPX Generator Optimized for GPS Joystick ---
 async function generateAndDownloadGPX() {
     const activeFilters = new Set();
     const checkedBoxes = document.querySelectorAll('.custom-multiselect input[type="checkbox"]:checked');
@@ -286,12 +310,23 @@ async function generateAndDownloadGPX() {
         return;
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const questsPath = `./JSON/quests_${todayStr}.json`;
+    const city = getSelectedCityConfig();
+    const btn = document.querySelector('.btn-generate');
+    
+    btn.textContent = `Fetching ${city.name} Quest Data...`;
+    btn.disabled = true;
 
     try {
-        const res = await fetch(questsPath);
-        if (!res.ok) throw new Error(`Could not locate active file: ${questsPath}`);
+        // Build path to the local city_YYYY-MM-DD.json file
+        const todayStr = new Date().toISOString().split('T')[0];
+        const questJsonUrl = `./JSON/${city.fileSlug}_${todayStr}.json?v=` + Date.now();
+        
+        const res = await fetch(questJsonUrl);
+        
+        if (!res.ok) {
+            throw new Error(`Could not load daily quest data for ${city.name} (${city.fileSlug}_${todayStr}.json).`);
+        }
+        
         const data = await res.json();
         const quests = data.quests || [];
 
@@ -313,33 +348,37 @@ async function generateAndDownloadGPX() {
         });
 
         if (matchedCoords.length === 0) {
-            alert('No matching pokestops found for active filters.');
+            alert(`No matching Pokéstops found for active filters in ${city.name}.`);
+            btn.textContent = 'Generate & Download GPX';
+            btn.disabled = false;
             return;
         }
 
-        const btn = document.querySelector('.btn-generate');
-        btn.textContent = 'Filtering Manhattan Clusters & Optimizing...';
-        btn.disabled = true;
+        btn.textContent = `Filtering ${city.name} Clusters & Optimizing...`;
 
         const worker = new Worker('./worker.js');
-        worker.postMessage(matchedCoords);
+        
+        // Pass matched coordinates and target city key to worker
+        worker.postMessage({
+            points: matchedCoords,
+            city: city.cityKey
+        });
 
         worker.onmessage = function(e) {
             const optimizedRoute = e.data;
 
             if (!optimizedRoute || optimizedRoute.length === 0) {
-                alert('No clusters with 6+ Pokéstops within 1.5km found inside Manhattan for selected filters.');
+                alert(`No clusters or pokéstops found within ${city.name} geofence for selected filters.`);
                 btn.textContent = 'Generate & Download GPX';
                 btn.disabled = false;
                 worker.terminate();
                 return;
             }
 
-            // Updated GPX Structure: Removed xmlns and set creator to Priyank Vashiar
             let gpxStr = `<?xml version="1.0" encoding="UTF-8"?>\n`;
             gpxStr += `<gpx version="1.1" creator="Priyank Vashiar">\n`;
             gpxStr += `  <rte>\n`;
-            gpxStr += `    <name>Manhattan Quest Route ${todayStr}</name>\n`;
+            gpxStr += `    <name>${city.name} Quest Route ${todayStr}</name>\n`;
 
             optimizedRoute.forEach((pt, index) => {
                 gpxStr += `    <rtept lat="${pt.lat}" lon="${pt.lng}">\n`;
@@ -353,7 +392,7 @@ async function generateAndDownloadGPX() {
             const blob = new Blob([gpxStr], { type: 'application/gpx+xml' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `${todayStr}_manhattan_route.gpx`;
+            link.download = `${todayStr}_${city.fileSlug}_route.gpx`;
             link.click();
 
             btn.textContent = 'Generate & Download GPX';
@@ -370,7 +409,12 @@ async function generateAndDownloadGPX() {
 
     } catch (err) {
         alert('Error generating GPX: ' + err.message);
+        btn.textContent = 'Generate & Download GPX';
+        btn.disabled = false;
     }
 }
+
+// Make generate function available globally as well
+window.generateAndDownloadGPX = generateAndDownloadGPX;
 
 window.onload = init;
