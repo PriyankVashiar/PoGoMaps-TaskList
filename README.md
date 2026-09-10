@@ -31,6 +31,7 @@ An automated web application and background scraper that extracts daily Pokémon
 
 ## 📂 Project Structure
 
+```text
 PoGoMaps-TaskList/
 ├── .github/
 │   └── workflows/
@@ -45,15 +46,18 @@ PoGoMaps-TaskList/
 ├── worker.js                  # Web Worker for geofencing & 2-Opt TSP optimization
 ├── map_scraper.py             # Python scraper for fetching regional map payloads
 └── requirements.txt           # Python dependencies for scraper
+```
 
 ---
 
 ## ⚙️ How It Works
 
+```text
 ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
 │  map_scraper.py  │───>│  <city>_quests   │───>│    script.js     │───>│    worker.js     │───> Download
 │ (Pulls Map Data) │    │      (.json)     │    │  (Filters Items) │    │  (2-Opt TSP Path)│     (.gpx)
 └──────────────────┘    └──────────────────┘    └──────────────────┘    └──────────────────┘
+```
 
 1. **Scrape**: `map_scraper.py` queries live map endpoints for active Pokéstops, parses active rewards and conditions, and dumps structured data to `JSON/<city_slug>_quests.json`.
 2. **Select**: Users load the web interface and select desired rewards or task conditions via multi-select dropdowns.
@@ -65,19 +69,21 @@ PoGoMaps-TaskList/
 ## 💻 Local Development
 
 ### 1. Web Application
-
 No build step or backend server is required. Serve the root directory with any HTTP static file server:
 
+```bash
 # Using Python
 python3 -m http.server 8000
 
 # Using Node.js
 npx serve .
+```
 
 Open `http://localhost:8000` in your web browser.
 
 ### 2. Running the Scraper Manually
 
+```bash
 # Install required Python packages
 pip install -r requirements.txt
 
@@ -86,12 +92,13 @@ python map_scraper.py syd
 
 # Run scraper for all supported cities
 python map_scraper.py all
+```
 
 ---
 
 ## 🚀 GitHub Actions Automation
 
-Automated daily scraping is powered by `.github/workflows/run_scraper.yml`.
+Automated daily scraping is powered by `.github/workflows/run_scraper.yml`. 
 
 * **Schedules**: Runs automatically at staggered intervals throughout the day to mirror regional quest resets.
 * **Manual Triggers**: Can be executed on demand via the **Actions** tab on GitHub using the `workflow_dispatch` trigger to update quest data for specific cities at any time.
@@ -103,3 +110,4 @@ Automated daily scraping is powered by `.github/workflows/run_scraper.yml`.
 * **Map Creators**: Creators of `nycpokemap.com`, `sgpokemap.com`, `sydneypogomap.com`, `vanpokemap.com`, and `londonpogomap.com` for providing public map endpoints and data feeds.
 * **[PokeAPI/sprites](https://github.com/PokeAPI/sprites)**: For providing high-quality Pokémon artwork and item icons.
 * **[Purukitto/pokemon-data.json](https://github.com/Purukitto/pokemon-data.json)**: For providing the Pokédex data structure and mappings.
+``░
