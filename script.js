@@ -1,13 +1,15 @@
 let questList = {};
 let pokedexMap = {};
+let timerInterval = null;
 
-// City configurations matching the dropdown options and scraper file prefixes
+// City configurations matching the dropdown options, scraper file prefixes,
+// and UTC refresh times (Set these to match your run_scraper.yml cron schedules)
 const CITY_CONFIGS = {
-    "https://nycpokemap.com": { cityKey: "nyc", name: "New York", fileSlug: "nyc" },
-    "https://vanpokemap.com": { cityKey: "vancouver", name: "Vancouver", fileSlug: "vc" },
-    "https://sgpokemap.com": { cityKey: "singapore", name: "Singapore", fileSlug: "sg" },
-    "https://sydneypogomap.com": { cityKey: "sydney", name: "Sydney", fileSlug: "syd" },
-    "https://londonpogomap.com": { cityKey: "london", name: "London", fileSlug: "uk" }
+    "https://nycpokemap.com": { cityKey: "nyc", name: "New York", fileSlug: "nyc", refreshUtcHour: 5, refreshUtcMinute: 0 },
+    "https://vanpokemap.com": { cityKey: "vancouver", name: "Vancouver", fileSlug: "vc", refreshUtcHour: 8, refreshUtcMinute: 0 },
+    "https://sgpokemap.com": { cityKey: "singapore", name: "Singapore", fileSlug: "sg", refreshUtcHour: 17, refreshUtcMinute: 0 },
+    "https://sydneypogomap.com": { cityKey: "sydney", name: "Sydney", fileSlug: "syd", refreshUtcHour: 15, refreshUtcMinute: 0 },
+    "https://londonpogomap.com": { cityKey: "london", name: "London", fileSlug: "uk", refreshUtcHour: 1, refreshUtcMinute: 0 }
 };
 
 // Exact mapping of Item IDs to filenames in assets/icons/
@@ -33,13 +35,65 @@ function getSelectedCityConfig() {
     };
 }
 
+// Countdown timer function based on user local browser time vs UTC target reset
+function updateRefreshCountdown() {
+    const titleEl = document.querySelector('.main-title');
+    if (!titleEl) return;
+
+    const city = getSelectedCityConfig();
+    const now = new Date();
+
+    // Create Date object in UTC for today's refresh time
+    const target = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        city.refreshUtcHour ?? 0,
+        city.refreshUtcMinute ?? 0,
+        0
+    ));
+
+    // If today's refresh time has already passed, target tomorrow's UTC refresh time
+    if (now >= target) {
+        target.setUTCDate(target.getUTCDate() + 1);
+    }
+
+    const diffMs = target - now;
+    const totalMinutes = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    const pad = (num) => String(num).padStart(2, '0');
+    const timeText = ` (Refreshes in ${pad(hours)}:${pad(minutes)} hours)`;
+
+    // Find or create the span inside .main-title
+    let timerSpan = document.getElementById('refresh-timer');
+    if (!timerSpan) {
+        timerSpan = document.createElement('span');
+        timerSpan.id = 'refresh-timer';
+        titleEl.appendChild(timerSpan);
+    }
+
+    timerSpan.textContent = timeText;
+}
+
+function startRefreshCountdown() {
+    if (timerInterval) clearInterval(timerInterval);
+    updateRefreshCountdown();
+    // Update every 10 seconds to keep time accurate without unnecessary CPU usage
+    timerInterval = setInterval(updateRefreshCountdown, 10000);
+}
+
 // Explicitly define on global window object so inline HTML onchange handles it reliably
 window.onCityChange = function onCityChange() {
     const city = getSelectedCityConfig();
     console.log(`City switched to: ${city.name} (${city.baseUrl})`);
+    updateRefreshCountdown();
 };
 
 async function init() {
+    startRefreshCountdown();
+
     try {
         const [questRes, pokedexRes] = await Promise.all([
             fetch('./JSON/Quest_List.json?v=' + Date.now()),
