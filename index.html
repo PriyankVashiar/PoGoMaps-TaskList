@@ -8,7 +8,7 @@
 </head>
 <body>
 
-    <!-- Header Toolbar with Inline City Dropdown & Top-Right Action Button -->
+    <!-- Header Toolbar with Inline City Dropdown & Controls -->
     <header class="header-container">
         <div class="header-left">
             <select id="city-select" class="city-dropdown" onchange="onCityChange()">
@@ -20,9 +20,24 @@
             </select>
             <h1 class="main-title">Pokémon Go Route Generator</h1>
         </div>
-        <div class="btn-group">
-            <a href="https://buymeacoffee.com/priyankvashiar" target="_blank" rel="noopener noreferrer" class="donate-btn">☕ Donate</a>
-            <button class="btn-generate" onclick="generateAndDownloadGPX()">Generate & Download GPX</button>
+
+        <div class="route-controls">
+            <input 
+                type="text" 
+                id="currentLocationInput" 
+                class="control-input"
+                placeholder="Current Location (Lat, Lng) — Leave empty for efficientroute"
+                title="Leave empty to auto-calculate the most efficient route."
+                autocomplete="off"
+            />
+
+            <button id="generateRouteBtn" class="btn-primary" onclick="handleRouteGeneration()">
+                Generate Route
+            </button>
+
+            <button class="btn-secondary" onclick="handleDonate()">
+                ☕ Donate
+            </button>
         </div>
     </header>
 
