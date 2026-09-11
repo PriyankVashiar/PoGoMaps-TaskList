@@ -2,17 +2,14 @@ let questList = {};
 let pokedexMap = {};
 let timerInterval = null;
 
-// City configurations matching the dropdown options, scraper file prefixes,
-// and UTC refresh times (Set these to match your run_scraper.yml cron schedules)
 const CITY_CONFIGS = {
-    "https://nycpokemap.com": { cityKey: "nyc", name: "New York", fileSlug: "nyc", refreshUtcHour: 4, refreshUtcMinute: 18 },
-    "https://vanpokemap.com": { cityKey: "vancouver", name: "Vancouver", fileSlug: "vc", refreshUtcHour: 7, refreshUtcMinute: 18 },
-    "https://sgpokemap.com": { cityKey: "singapore", name: "Singapore", fileSlug: "sg", refreshUtcHour: 16, refreshUtcMinute: 18 },
-    "https://sydneypogomap.com": { cityKey: "sydney", name: "Sydney", fileSlug: "syd", refreshUtcHour: 14, refreshUtcMinute: 18 },
-    "https://londonpogomap.com": { cityKey: "london", name: "London", fileSlug: "uk", refreshUtcHour: 0, refreshUtcMinute: 18 }
+    "https://nycpokemap.com": { cityKey: "nyc", name: "New York", refreshUtcHour: 4, refreshUtcMinute: 18 },
+    "https://vanpokemap.com": { cityKey: "vc", name: "Vancouver", refreshUtcHour: 7, refreshUtcMinute: 18 },
+    "https://sgpokemap.com": { cityKey: "sg", name: "Singapore", refreshUtcHour: 16, refreshUtcMinute: 18 },
+    "https://sydneypogomap.com": { cityKey: "syd", name: "Sydney", refreshUtcHour: 14, refreshUtcMinute: 18 },
+    "https://londonpogomap.com": { cityKey: "uk", name: "London", refreshUtcHour: 0, refreshUtcMinute: 18 }
 };
 
-// Exact mapping of Item IDs to filenames in assets/icons/
 const ITEM_DETAILS = {
     "1": { name: "Poké Ball", file: "Poké_Ball.png" },
     "2": { name: "Great Ball", file: "Great_Ball.png" },
@@ -35,7 +32,6 @@ function getSelectedCityConfig() {
     };
 }
 
-// Countdown timer function based on user local browser time vs UTC target reset
 function updateRefreshCountdown() {
     const titleEl = document.querySelector('.main-title');
     if (!titleEl) return;
@@ -43,7 +39,6 @@ function updateRefreshCountdown() {
     const city = getSelectedCityConfig();
     const now = new Date();
 
-    // Create Date object in UTC for today's refresh time
     const target = new Date(Date.UTC(
         now.getUTCFullYear(),
         now.getUTCMonth(),
@@ -53,7 +48,6 @@ function updateRefreshCountdown() {
         0
     ));
 
-    // If today's refresh time has already passed, target tomorrow's UTC refresh time
     if (now >= target) {
         target.setUTCDate(target.getUTCDate() + 1);
     }
@@ -66,7 +60,6 @@ function updateRefreshCountdown() {
     const pad = (num) => String(num).padStart(2, '0');
     const timeText = ` (Refreshes in ${pad(hours)}:${pad(minutes)} hours)`;
 
-    // Find or create the span inside .main-title
     let timerSpan = document.getElementById('refresh-timer');
     if (!timerSpan) {
         timerSpan = document.createElement('span');
@@ -80,11 +73,9 @@ function updateRefreshCountdown() {
 function startRefreshCountdown() {
     if (timerInterval) clearInterval(timerInterval);
     updateRefreshCountdown();
-    // Update every 10 seconds to keep time accurate without unnecessary CPU usage
     timerInterval = setInterval(updateRefreshCountdown, 10000);
 }
 
-// Explicitly define on global window object so inline HTML onchange handles it reliably
 window.onCityChange = function onCityChange() {
     const city = getSelectedCityConfig();
     console.log(`City switched to: ${city.name} (${city.baseUrl})`);
@@ -127,9 +118,7 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
     const container = document.createElement('div');
     container.className = 'checkboxes-container';
 
-    container.addEventListener('click', (e) => {
-        e.stopPropagation();
-    });
+    container.addEventListener('click', (e) => e.stopPropagation());
 
     const optionsToRender = (conditions && conditions.length > 0) ? conditions : ["No Conditions"];
     const checkboxes = [];
@@ -157,13 +146,10 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
 
     selectBox.addEventListener('click', (e) => {
         e.stopPropagation();
-
         const isShowing = container.classList.contains('show');
 
         document.querySelectorAll('.checkboxes-container.show').forEach(el => {
-            if (el !== container) {
-                el.classList.remove('show', 'drop-up');
-            }
+            if (el !== container) el.classList.remove('show', 'drop-up');
         });
 
         if (!isShowing) {
@@ -172,10 +158,7 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
             if (cardBody) {
                 const cardRect = cardBody.getBoundingClientRect();
                 const boxRect = selectBox.getBoundingClientRect();
-                const dropdownHeight = 200;
-
-                const spaceBelow = cardRect.bottom - boxRect.bottom;
-                if (spaceBelow < dropdownHeight) {
+                if ((cardRect.bottom - boxRect.bottom) < 200) {
                     container.classList.add('drop-up');
                 } else {
                     container.classList.remove('drop-up');
@@ -208,6 +191,7 @@ function renderCards() {
         if (!container || !questList[cat]) return;
 
         container.innerHTML = '';
+        const fragment = document.createDocumentFragment();
 
         if (cat === '3') {
             const level2Obj = questList['3']['0'] || {};
@@ -225,7 +209,7 @@ function renderCards() {
 
                 row.appendChild(label);
                 row.appendChild(customDropdown);
-                container.appendChild(row);
+                fragment.appendChild(row);
             });
         } else if (cat === '7' || cat === '12') {
             const level2Obj = questList[cat] || {};
@@ -233,7 +217,6 @@ function renderCards() {
             Object.keys(level2Obj).forEach(pokemonId => {
                 const pokemonData = pokedexMap[pokemonId];
                 const pokemonName = pokemonData?.name?.english || `ID: ${pokemonId}`;
-                
                 const iconSrc = `./assets/pokeapi-official-artwork/${pokemonId}.png`;
 
                 const level3Obj = level2Obj[pokemonId] || {};
@@ -263,7 +246,7 @@ function renderCards() {
 
                 row.appendChild(labelWrapper);
                 row.appendChild(customDropdown);
-                container.appendChild(row);
+                fragment.appendChild(row);
             });
         } else {
             const level2Obj = questList[cat] || {};
@@ -334,11 +317,13 @@ function renderCards() {
                         }
                     });
 
-                    container.appendChild(accBtn);
-                    container.appendChild(panel);
+                    fragment.appendChild(accBtn);
+                    fragment.appendChild(panel);
                 }
             });
         }
+        
+        container.appendChild(fragment);
     });
 }
 
@@ -346,17 +331,12 @@ document.addEventListener('click', () => {
     document.querySelectorAll('.checkboxes-container.show').forEach(el => el.classList.remove('show', 'drop-up'));
 });
 
-// --- GPX Generator Optimized for GPS Joystick ---
 async function generateAndDownloadGPX() {
     const activeFilters = new Set();
     const checkedBoxes = document.querySelectorAll('.custom-multiselect input[type="checkbox"]:checked');
 
     checkedBoxes.forEach(cb => {
-        const l1 = cb.dataset.l1;
-        const l2 = cb.dataset.l2;
-        const l3 = cb.dataset.l3;
-        const cond = cb.value;
-        activeFilters.add(`${l1},${l2},${l3},${cond}`);
+        activeFilters.add(`${cb.dataset.l1},${cb.dataset.l2},${cb.dataset.l3},${cb.value}`);
     });
 
     if (activeFilters.size === 0) {
@@ -371,35 +351,33 @@ async function generateAndDownloadGPX() {
     btn.disabled = true;
 
     try {
-        // Build path directly to the static city_quests.json file
         const todayStr = new Date().toISOString().split('T')[0];
-        const questJsonUrl = `./JSON/${city.fileSlug}_quests.json?v=` + Date.now();
+        const questJsonUrl = `./JSON/${city.cityKey}_quests.json?v=` + Date.now();
         
         const res = await fetch(questJsonUrl);
-        
         if (!res.ok) {
-            throw new Error(`Could not load quest data for ${city.name} (${city.fileSlug}_quests.json).`);
+            throw new Error(`Could not load quest data for ${city.name} (${city.cityKey}_quests.json).`);
         }
         
         const data = await res.json();
         const quests = data.quests || [];
 
         const matchedCoords = [];
-        quests.forEach(q => {
+        for (let i = 0; i < quests.length; i++) {
+            const q = quests[i];
             const l1 = String(q.rewards_types || '').trim();
             const l2 = String(q.rewards_ids || '0').trim();
             const l3 = String(q.rewards_amounts || '0').trim();
             const cond = String(q.conditions_string || '').trim();
-            const filterKey = `${l1},${l2},${l3},${cond}`;
 
-            if (activeFilters.has(filterKey)) {
+            if (activeFilters.has(`${l1},${l2},${l3},${cond}`)) {
                 matchedCoords.push({
                     lat: parseFloat(q.lat),
                     lng: parseFloat(q.lng),
                     name: (q.name || 'Pokestop').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 });
             }
-        });
+        }
 
         if (matchedCoords.length === 0) {
             alert(`No matching Pokéstops found for active filters in ${city.name}.`);
@@ -410,18 +388,25 @@ async function generateAndDownloadGPX() {
 
         btn.textContent = `Filtering ${city.name} Clusters & Optimizing...`;
 
-        const worker = new Worker('./worker.js');
+        const worker = new Worker('./worker.js?v=' + Date.now());
         
-        // Pass matched coordinates and target city key to worker
         worker.postMessage({
             points: matchedCoords,
             city: city.cityKey
         });
 
         worker.onmessage = function(e) {
+            if (e.data && e.data.error) {
+                alert(`Worker error: ${e.data.error}`);
+                btn.textContent = 'Generate & Download GPX';
+                btn.disabled = false;
+                worker.terminate();
+                return;
+            }
+
             const optimizedRoute = e.data;
 
-            if (!optimizedRoute || optimizedRoute.length === 0) {
+            if (!Array.isArray(optimizedRoute) || optimizedRoute.length === 0) {
                 alert(`No clusters or pokéstops found within ${city.name} geofence for selected filters.`);
                 btn.textContent = 'Generate & Download GPX';
                 btn.disabled = false;
@@ -429,24 +414,28 @@ async function generateAndDownloadGPX() {
                 return;
             }
 
-            let gpxStr = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-            gpxStr += `<gpx version="1.1" creator="Priyank Vashiar">\n`;
-            gpxStr += `  <rte>\n`;
-            gpxStr += `    <name>${city.name} Quest Route ${todayStr}</name>\n`;
+            const gpxParts = [
+                '<?xml version="1.0" encoding="UTF-8"?>\n',
+                '<gpx version="1.1" creator="Priyank Vashiar">\n',
+                '  <rte>\n',
+                `    <name>${city.name} Quest Route ${todayStr}</name>\n`
+            ];
 
-            optimizedRoute.forEach((pt, index) => {
-                gpxStr += `    <rtept lat="${pt.lat}" lon="${pt.lng}">\n`;
-                gpxStr += `      <name>${index + 1}. ${pt.name}</name>\n`;
-                gpxStr += `    </rtept>\n`;
-            });
+            for (let i = 0; i < optimizedRoute.length; i++) {
+                const pt = optimizedRoute[i];
+                gpxParts.push(
+                    `    <rtept lat="${pt.lat}" lon="${pt.lng}">\n`,
+                    `      <name>${i + 1}. ${pt.name}</name>\n`,
+                    `    </rtept>\n`
+                );
+            }
 
-            gpxStr += `  </rte>\n`;
-            gpxStr += `</gpx>`;
+            gpxParts.push('  </rte>\n</gpx>');
 
-            const blob = new Blob([gpxStr], { type: 'application/gpx+xml' });
+            const blob = new Blob([gpxParts.join('')], { type: 'application/gpx+xml' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `${todayStr}_${city.fileSlug}_route.gpx`;
+            link.download = `${todayStr}_${city.cityKey}_route.gpx`;
             link.click();
 
             btn.textContent = 'Generate & Download GPX';
@@ -468,7 +457,5 @@ async function generateAndDownloadGPX() {
     }
 }
 
-// Make generate function available globally as well
 window.generateAndDownloadGPX = generateAndDownloadGPX;
-
 window.onload = init;

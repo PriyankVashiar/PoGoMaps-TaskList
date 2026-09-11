@@ -1,204 +1,433 @@
-// --- Helper: Fast Planar Projection for City-Scale Distance Checks ---
+// --- Per-point planar projection, used for TSP distance calculations ---
 function projectPoint(pt) {
     const latRad = pt.lat * Math.PI / 180;
     return {
         ...pt,
-        // Approximate meters relative to equator/prime meridian
         x: pt.lng * 111320 * Math.cos(latRad),
         y: pt.lat * 110540
     };
 }
 
-// Fast Euclidean Squared Distance (No Math.sqrt needed for comparisons)
 function distSq(p1, p2) {
     const dx = p1.x - p2.x;
     const dy = p1.y - p2.y;
     return dx * dx + dy * dy;
 }
 
-// Haversine Distance (Used only when exact meter distance is needed)
-function haversineMeters(p1, p2) {
-    const R = 6371000;
-    const dLat = (p2.lat - p1.lat) * Math.PI / 180;
-    const dLng = (p2.lng - p1.lng) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
-              Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+function dist(p1, p2) {
+    return Math.sqrt(distSq(p1, p2));
 }
 
-// --- Geofence Configurations ---
-const GEOFENCES = {
-    "nyc": {
-        type: "polygon",
-        bbox: [40.6996294, 40.8786511, -74.0197496, -73.9066021],
-        polygon: [
-            [40.6996294, -74.0154309], [40.710577, -73.9772546], [40.7338901, -73.968482],
-            [40.753, -73.963], [40.772, -73.945], [40.7970811, -73.9288275],
-            [40.834, -73.934], [40.8723982, -73.9066021], [40.8786511, -73.9268079],
-            [40.852, -73.947], [40.8132074, -73.966538], [40.7604084, -74.0061138],
-            [40.7074679, -74.0197496], [40.6996294, -74.0154309]
+// ============================================================
+// Hex grid math & embedded city configurations
+// ============================================================
+
+const AXIAL_DIRECTIONS = [
+    [1, 0], [1, -1], [0, -1],
+    [-1, 0], [-1, 1], [0, 1]
+];
+
+const SQRT_3 = Math.sqrt(3);
+
+const CITY_CONFIGS = {
+    nyc: {
+        hexSizeMeters: 700,
+        bbox: [
+            [-74.2561216, 40.9176132],
+            [-73.650657, 40.9176132],
+            [-73.650657, 40.4902703],
+            [-74.2561216, 40.4902703],
+            [-74.2561216, 40.9176132],
         ]
     },
-    "vancouver": {
-        type: "polygon",
-        bbox: [49.1954514, 49.3124924, -123.165553, -122.8817871],
-        polygon: [
-            [49.2001528, -123.1358717], [49.2091965, -123.0716264], [49.1954514, -122.951696],
-            [49.2244104, -122.8817871], [49.2903183, -122.8855786], [49.2926984, -122.9882005],
-            [49.2929908, -123.0518704], [49.2831415, -123.0842692], [49.3124924, -123.142971],
-            [49.301048, -123.1578014], [49.27234, -123.165553], [49.2001528, -123.1358717]
+    uk: {
+        hexSizeMeters: 600,
+        bbox: [
+            [-0.2330444, 51.5739191],
+            [0.0171043, 51.5739191],
+            [0.0171043, 51.4599168],
+            [-0.2330444, 51.4599168],
+            [-0.2330444, 51.5739191]
         ]
     },
-    "singapore": {
-        type: "polygon",
-        bbox: [1.2644338, 1.4317288, 103.8258868, 104.0372755],
-        polygon: [
-            [1.2655376, 103.8258868], [1.2644338, 103.9752533], [1.3116773, 104.0163067],
-            [1.3672344, 104.0372755], [1.4317288, 103.8748829], [1.3953192, 103.831487],
-            [1.2655376, 103.8258868]
+    sg: {
+        hexSizeMeters: 800,
+        bbox: [
+            [103.65026593111105, 1.4745776977361658],
+            [104.03530627684654, 1.4745776977361658],
+            [104.03530627684654, 1.236640927766203],
+            [103.65026593111105, 1.236640927766203],
+            [103.65026593111105, 1.4745776977361658]
         ]
     },
-    "sydney": {
-        type: "polygon",
-        bbox: [-33.9467882, -33.8462107, 151.128141, 151.284419],
-        polygon: [
-            [-33.9153566, 151.128141], [-33.9467882, 151.256957], [-33.9140488, 151.2715366],
-            [-33.8738737, 151.284419], [-33.8576186, 151.2296514], [-33.8462107, 151.1842048],
-            [-33.8693291, 151.1410604], [-33.9153566, 151.128141]
+    syd: {
+        hexSizeMeters: 700,
+        bbox: [
+            [151.3058271, -34.002121],
+            [150.9580065, -34.002121],
+            [150.9580065, -33.7599584],
+            [151.3058271, -33.7599584],
+            [151.3058271, -34.002121]
         ]
     },
-    "london": {
-        type: "bbox",
-        bbox: [51.450, 51.550, -0.250, 0.050]
+    vc: {
+        hexSizeMeters: 1000,
+        bbox: [
+            [-123.20701971073987, 49.31401],
+            [-122.87392354605953, 49.314010728183234],
+            [-122.87392354605953, 49.112986578992206],
+            [-123.20701971073987, 49.112986578992206],
+            [-123.20701971073987, 49.314010728183234]
+        ]
     }
 };
 
-function isInsidePolygon(point, polygon) {
-    const x = point.lat, y = point.lng;
-    let inside = false;
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi = polygon[i][0], yi = polygon[i][1];
-        const xj = polygon[j][0], yj = polygon[j][1];
-        const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-        if (intersect) inside = !inside;
+function computeGridFromBbox(bbox, hexSizeMeters) {
+    let minLng = Infinity, maxLng = -Infinity;
+    let minLat = Infinity, maxLat = -Infinity;
+
+    for (const [lng, lat] of bbox) {
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
     }
-    return inside;
+
+    return {
+        hexSizeMeters,
+        origin: { lat: minLat, lng: minLng },
+        refLat: (minLat + maxLat) / 2
+    };
 }
 
-function isInsideBBox(point, bbox) {
-    const [minLat, maxLat, minLng, maxLng] = bbox;
-    return point.lat >= minLat && point.lat <= maxLat && point.lng >= minLng && point.lng <= maxLng;
+function getHexGrid(cityKey, customGrid) {
+    if (customGrid) return customGrid;
+
+    const config = CITY_CONFIGS[cityKey];
+    if (!config) {
+        const available = Object.keys(CITY_CONFIGS).filter(k => CITY_CONFIGS[k]);
+        throw new Error(`No hex grid config found for city "${cityKey}". Available cities: ${available.join(", ") || "none"}`);
+    }
+
+    return computeGridFromBbox(config.bbox, config.hexSizeMeters);
 }
 
-function isInsideGeofence(point, cityKey) {
-    const config = GEOFENCES[cityKey];
-    if (!config) return true;
-    if (!isInsideBBox(point, config.bbox)) return false;
-    if (config.type === "polygon") return isInsidePolygon(point, config.polygon);
-    return true;
+function hexProject(lat, lng, origin, refLatRad) {
+    return {
+        x: (lng - origin.lng) * 111320 * Math.cos(refLatRad),
+        y: (lat - origin.lat) * 110540
+    };
 }
 
-// --- Fast Cluster Filter ---
-function filterDenseClusters(points, radiusMeters = 1500, minNodes = 2) {
-    if (points.length <= minNodes) return points;
-    const radiusSq = radiusMeters * radiusMeters;
-    const validPoints = [];
+function pixelToAxialFrac(x, y, size) {
+    const q = (2 / 3) * x / size;
+    const r = ((-1 / 3) * x + (SQRT_3 / 3) * y) / size;
+    return { q, r };
+}
+
+function axialRound(qFrac, rFrac) {
+    let x = qFrac, z = rFrac, y = -x - z;
+    let rx = Math.round(x), ry = Math.round(y), rz = Math.round(z);
+    const xDiff = Math.abs(rx - x), yDiff = Math.abs(ry - y), zDiff = Math.abs(rz - z);
+    if (xDiff > yDiff && xDiff > zDiff) rx = -ry - rz;
+    else if (yDiff > zDiff) ry = -rx - rz;
+    else rz = -rx - ry;
+    return { q: rx, r: rz };
+}
+
+// Assign points to axial hexagon IDs ("q,r") storing axial coords
+function binPointsToHexagons(points, grid) {
+    const origin = grid.origin;
+    const refLatRad = grid.refLat * Math.PI / 180;
+    const size = grid.hexSizeMeters;
+    const map = new Map();
 
     for (let i = 0; i < points.length; i++) {
-        let count = 0;
-        for (let j = 0; j < points.length; j++) {
-            if (distSq(points[i], points[j]) <= radiusSq) {
-                count++;
-                if (count >= minNodes) break;
-            }
+        const pt = points[i];
+        const { x, y } = hexProject(pt.lat, pt.lng, origin, refLatRad);
+        const frac = pixelToAxialFrac(x, y, size);
+        const { q, r } = axialRound(frac.q, frac.r);
+        const id = `${q},${r}`;
+        
+        let entry = map.get(id);
+        if (!entry) {
+            entry = { q, r, points: [] };
+            map.set(id, entry);
         }
-        if (count >= minNodes) validPoints.push(points[i]);
+        entry.points.push(pt);
     }
-    return validPoints;
+    return map;
 }
 
-// --- Step 1: Greedy Nearest Neighbor Route ---
-function nearestNeighborTSP(points) {
-    if (points.length <= 2) return points;
-    const unvisited = [...points];
-    const route = [unvisited.shift()];
-
-    while (unvisited.length > 0) {
-        const last = route[route.length - 1];
-        let bestIdx = 0;
-        let minDist = Infinity;
-
-        for (let i = 0; i < unvisited.length; i++) {
-            const d = distSq(last, unvisited[i]);
-            if (d < minDist) {
-                minDist = d;
-                bestIdx = i;
-            }
-        }
-        route.push(unvisited.splice(bestIdx, 1)[0]);
+// Filter hexagons by point density AND active neighbor count
+function filterActiveHexagons(hexMap, minPoints, minActiveNeighbors) {
+    const activeIds = new Set();
+    for (const [id, entry] of hexMap.entries()) {
+        if (entry.points.length >= minPoints) activeIds.add(id);
     }
-    return route;
+
+    const filtered = new Set();
+    for (const id of activeIds) {
+        const entry = hexMap.get(id);
+        let activeNeighborCount = 0;
+        for (const [dq, dr] of AXIAL_DIRECTIONS) {
+            if (activeIds.has(`${entry.q + dq},${entry.r + dr}`)) activeNeighborCount++;
+        }
+        if (activeNeighborCount >= minActiveNeighbors) filtered.add(id);
+    }
+    return filtered;
 }
 
-// --- Step 2: 2-Opt Optimization ---
-function twoOptTSP(points) {
-    if (points.length <= 3) return points;
+// Retain only the largest axially connected component using O(1) Queue index pointer
+function filterLargestConnectedComponent(activeIds, hexMap) {
+    if (activeIds.size <= 1) return activeIds;
 
-    // Start with a smart nearest-neighbor route
-    let route = nearestNeighborTSP(points);
-    let improved = true;
-    let passes = 0;
-    const maxPasses = 25;
+    const visited = new Set();
+    let largestComponent = new Set();
 
-    while (improved && passes < maxPasses) {
-        improved = false;
-        passes++;
+    for (const id of activeIds) {
+        if (visited.has(id)) continue;
 
-        for (let i = 1; i < route.length - 2; i++) {
-            for (let j = i + 1; j < route.length; j++) {
-                if (j - i === 1) continue;
+        const currentComponent = new Set();
+        const queue = [id];
+        let queueHead = 0;
+        visited.add(id);
 
-                const p1 = route[i - 1], p2 = route[i];
-                const p3 = route[j], p4 = route[j + 1] || route[j];
+        while (queueHead < queue.length) {
+            const currId = queue[queueHead++];
+            currentComponent.add(currId);
 
-                const currentDist = distSq(p1, p2) + distSq(p3, p4);
-                const newDist = distSq(p1, p3) + distSq(p2, p4);
+            const entry = hexMap.get(currId);
+            if (!entry) continue;
 
-                if (newDist < currentDist) {
-                    const reversedSub = route.slice(i, j + 1).reverse();
-                    route.splice(i, reversedSub.length, ...reversedSub);
-                    improved = true;
+            for (const [dq, dr] of AXIAL_DIRECTIONS) {
+                const neighborId = `${entry.q + dq},${entry.r + dr}`;
+                if (activeIds.has(neighborId) && !visited.has(neighborId)) {
+                    visited.add(neighborId);
+                    queue.push(neighborId);
                 }
             }
         }
+
+        if (currentComponent.size > largestComponent.size) {
+            largestComponent = currentComponent;
+        }
+    }
+
+    return largestComponent;
+}
+
+// ============================================================
+// TSP: multi-start Nearest Neighbor + 2-opt + Or-opt local search
+// ============================================================
+
+function nearestNeighborTSP(points, startIdx = 0) {
+    const n = points.length;
+    if (n <= 2) return [...points];
+
+    const visited = new Uint8Array(n);
+    const route = new Array(n);
+    
+    route[0] = points[startIdx];
+    visited[startIdx] = 1;
+
+    let currentIdx = startIdx;
+    for (let count = 1; count < n; count++) {
+        const currentPt = points[currentIdx];
+        let bestIdx = -1, minDist = Infinity;
+
+        for (let i = 0; i < n; i++) {
+            if (!visited[i]) {
+                const d = distSq(currentPt, points[i]);
+                if (d < minDist) {
+                    minDist = d;
+                    bestIdx = i;
+                }
+            }
+        }
+        visited[bestIdx] = 1;
+        route[count] = points[bestIdx];
+        currentIdx = bestIdx;
     }
     return route;
 }
 
-// --- Worker Message Listener ---
-self.onmessage = function (e) {
+function routeLength(route) {
+    let total = 0;
+    for (let i = 0; i < route.length - 1; i++) total += dist(route[i], route[i + 1]);
+    return total;
+}
+
+// In-place subarray reversal to eliminate allocations
+function reverseRange(arr, i, j) {
+    while (i < j) {
+        const temp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = temp;
+        i++;
+        j--;
+    }
+}
+
+function twoOptPass(route) {
+    const n = route.length;
+    if (n <= 3) return false;
+    let improved = false;
+
+    for (let i = 1; i < n - 1; i++) {
+        for (let j = i + 1; j < n; j++) {
+            if (j - i === 1) continue;
+
+            const p1 = route[i - 1], p2 = route[i];
+            const p3 = route[j];
+            const hasP4 = j + 1 < n;
+
+            let delta;
+            if (hasP4) {
+                const p4 = route[j + 1];
+                delta = (dist(p1, p3) + dist(p2, p4)) - (dist(p1, p2) + dist(p3, p4));
+            } else {
+                delta = dist(p1, p3) - dist(p1, p2);
+            }
+
+            if (delta < -1e-9) {
+                reverseRange(route, i, j);
+                improved = true;
+            }
+        }
+    }
+    return improved;
+}
+
+function orOptPass(route, segLen) {
+    const n = route.length;
+    if (n <= segLen + 2) return false;
+
+    for (let i = 1; i <= n - segLen - 1; i++) {
+        const prev = route[i - 1];
+        const segStart = route[i];
+        const segEnd = route[i + segLen - 1];
+        const next = route[i + segLen];
+
+        const removeCost = dist(prev, segStart) + dist(segEnd, next) - dist(prev, next);
+        if (removeCost <= 1e-9) continue;
+
+        for (let j = 0; j < n - 1; j++) {
+            if (j >= i - 1 && j <= i + segLen - 1) continue;
+
+            const a = route[j], b = route[j + 1];
+            const insertFwd = dist(a, segStart) + dist(segEnd, b) - dist(a, b);
+            const insertRev = dist(a, segEnd) + dist(segStart, b) - dist(a, b);
+            const reversed = insertRev < insertFwd;
+            const insertCost = Math.min(insertFwd, insertRev);
+
+            if (insertCost - removeCost < -1e-9) {
+                const segment = route.splice(i, segLen);
+                if (reversed) segment.reverse();
+                let insertAt = j + 1;
+                if (j > i) insertAt -= segLen;
+                route.splice(insertAt, 0, ...segment);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function localSearch(route, deadline) {
+    let improved = true;
+    while (improved && Date.now() < deadline) {
+        improved = false;
+        if (twoOptPass(route)) improved = true;
+        if (Date.now() > deadline) break;
+        for (const segLen of [1, 2, 3]) {
+            if (Date.now() > deadline) break;
+            if (orOptPass(route, segLen)) improved = true;
+        }
+    }
+    return route;
+}
+
+function pickStartIndices(n, count) {
+    const starts = new Set();
+    for (let i = 0; i < count; i++) starts.add(Math.floor((i * n) / count));
+    return [...starts];
+}
+
+function twoOptTSP(points, options = {}) {
+    const n = points.length;
+    if (n <= 3) return [...points];
+
+    const timeLimitMs = options.timeLimitMs || 8000;
+    const overallDeadline = Date.now() + timeLimitMs;
+    
+    const startIndices = options.startIndices || pickStartIndices(n, options.starts || 6);
+
+    let bestRoute = null, bestLen = Infinity;
+
+    for (let s = 0; s < startIndices.length; s++) {
+        if (Date.now() > overallDeadline) break;
+        let route = nearestNeighborTSP(points, startIndices[s]);
+        const remaining = overallDeadline - Date.now();
+        const perStartDeadline = Date.now() + Math.max(remaining / (startIndices.length - s), 200);
+        route = localSearch(route, Math.min(perStartDeadline, overallDeadline));
+
+        const len = routeLength(route);
+        if (len < bestLen) { bestLen = len; bestRoute = route; }
+    }
+    return bestRoute;
+}
+
+// ============================================================
+// Worker message handler
+// ============================================================
+
+self.onmessage = async function (e) {
     const rawPoints = e.data.points || e.data || [];
     const cityKey = e.data.city || "nyc";
+    const minPointsPerHex = e.data.minPointsPerHex ?? 3;
+    const minActiveNeighbors = e.data.minActiveNeighbors ?? 2;
+    const timeLimitMs = e.data.timeLimitMs || 8000;
 
-    // 1. Geofence Check
-    const geofenced = rawPoints.filter(pt => isInsideGeofence(pt, cityKey));
-    if (geofenced.length === 0) {
+    let grid;
+    try {
+        grid = getHexGrid(cityKey, e.data.hexGrid);
+    } catch (err) {
+        self.postMessage({ error: err.message });
+        return;
+    }
+
+    const hexMap = binPointsToHexagons(rawPoints, grid);
+    const activeHexIds = filterActiveHexagons(hexMap, minPointsPerHex, minActiveNeighbors);
+    const connectedHexIds = filterLargestConnectedComponent(activeHexIds, hexMap);
+
+    const targetPointsRaw = [];
+    const candidateStartIndices = [];
+
+    for (const hexId of connectedHexIds) {
+        const entry = hexMap.get(hexId);
+        if (!entry || entry.points.length === 0) continue;
+
+        const pts = entry.points;
+        const randomPtIdx = Math.floor(Math.random() * pts.length);
+        const globalStartIdx = targetPointsRaw.length + randomPtIdx;
+
+        candidateStartIndices.push(globalStartIdx);
+        targetPointsRaw.push(...pts);
+    }
+
+    if (targetPointsRaw.length === 0) {
         self.postMessage([]);
         return;
     }
 
-    // 2. Project Lat/Lng to X/Y Planar Coordinates
-    const projectedPoints = geofenced.map(projectPoint);
-
-    // 3. Cluster Filter
-    const clustered = filterDenseClusters(projectedPoints, 1500, 2);
-    const targetPoints = clustered.length > 0 ? clustered : projectedPoints;
-
-    // 4. Optimize TSP Route
-    const optimizedRoute = twoOptTSP(targetPoints);
-
-    // 5. Clean projected x/y fields before returning
+    const projectedPoints = targetPointsRaw.map(projectPoint);
+    const optimizedRoute = twoOptTSP(projectedPoints, { 
+        startIndices: candidateStartIndices, 
+        timeLimitMs 
+    });
+    
+    console.log(`Optimized route length: ${routeLength(optimizedRoute).toFixed(2)} meters`);
     const finalRoute = optimizedRoute.map(({ x, y, ...pt }) => pt);
 
     self.postMessage(finalRoute);
