@@ -1,6 +1,8 @@
 name: Daily Map Scraper
 
 on:
+  repository_dispatch:
+    types: [run_scraper]
   schedule:
     # 12:18 AM local time schedules converted to UTC:
     - cron: '18 16 * * *' # 12:18 AM SGT (Singapore)

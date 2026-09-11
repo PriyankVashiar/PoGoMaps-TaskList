@@ -427,7 +427,6 @@ self.onmessage = async function (e) {
         timeLimitMs 
     });
     
-    console.log(`Optimized route length: ${routeLength(optimizedRoute).toFixed(2)} meters`);
     const finalRoute = optimizedRoute.map(({ x, y, ...pt }) => pt);
 
     self.postMessage(finalRoute);

@@ -78,7 +78,6 @@ function startRefreshCountdown() {
 
 window.onCityChange = function onCityChange() {
     const city = getSelectedCityConfig();
-    console.log(`City switched to: ${city.name} (${city.baseUrl})`);
     updateRefreshCountdown();
 };
 
