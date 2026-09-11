@@ -484,7 +484,8 @@
       },
       "228": {
         "0": [
-          "Explore 2 km"
+          "Explore 2 km",
+          "Catch 10 Dark-type Pokémon"
         ]
       },
       "246": {
@@ -1003,6 +1004,16 @@
         ]
       },
       "973": {
+        "0": [
+          "Hatch an Egg"
+        ]
+      },
+      "318": {
+        "0": [
+          "Catch 10 Dark-type Pokémon"
+        ]
+      },
+      "942": {
         "0": [
           "Hatch an Egg"
         ]
