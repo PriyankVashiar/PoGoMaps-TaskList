@@ -445,52 +445,70 @@ self.onmessage = async function (e) {
     const timeLimitMs = e.data.timeLimitMs || 8000;
     const isCustom = e.data.isCustom || false;
 
-    let targetPointsRaw = [];
-    let candidateStartIndices = [];
-
-    if (isCustom) {
-        targetPointsRaw = rawPoints;
-        candidateStartIndices = [0];
-    } else {
-        let grid;
+    let baseGrid;
+    if (!isCustom) {
         try {
-            grid = getHexGrid(cityKey, e.data.hexGrid);
+            baseGrid = getHexGrid(cityKey, e.data.hexGrid);
         } catch (err) {
             self.postMessage({ error: err.message });
             return;
         }
+    }
 
-        const hexMap = binPointsToHexagons(rawPoints, grid);
-        const activeHexIds = filterActiveHexagons(hexMap, minPointsPerHex, minActiveNeighbors);
-        const connectedHexIds = filterLargestConnectedComponent(activeHexIds, hexMap);
+    let currentHexSize = baseGrid ? baseGrid.hexSizeMeters : 0;
+    let finalRoute = [];
 
-        for (const hexId of connectedHexIds) {
-            const entry = hexMap.get(hexId);
-            if (!entry || entry.points.length === 0) continue;
+    while (true) {
+        let targetPointsRaw = [];
+        let candidateStartIndices = [];
 
-            const pts = entry.points;
-            const randomPtIdx = Math.floor(Math.random() * pts.length);
-            candidateStartIndices.push(targetPointsRaw.length + randomPtIdx);
-            targetPointsRaw.push(...pts);
+        if (isCustom) {
+            targetPointsRaw = rawPoints;
+            candidateStartIndices = [0];
+        } else {
+            const grid = {
+                ...baseGrid,
+                hexSizeMeters: currentHexSize
+            };
+
+            const hexMap = binPointsToHexagons(rawPoints, grid);
+            const activeHexIds = filterActiveHexagons(hexMap, minPointsPerHex, minActiveNeighbors);
+            const connectedHexIds = filterLargestConnectedComponent(activeHexIds, hexMap);
+
+            for (const hexId of connectedHexIds) {
+                const entry = hexMap.get(hexId);
+                if (!entry || entry.points.length === 0) continue;
+
+                const pts = entry.points;
+                const randomPtIdx = Math.floor(Math.random() * pts.length);
+                candidateStartIndices.push(targetPointsRaw.length + randomPtIdx);
+                targetPointsRaw.push(...pts);
+            }
         }
+
+        if (targetPointsRaw.length > 0) {
+            const projectedPoints = targetPointsRaw.map(projectPoint);
+            const optimizedRoute = twoOptTSP(projectedPoints, { 
+                startIndices: candidateStartIndices, 
+                timeLimitMs 
+            });
+
+            if (optimizedRoute) {
+                finalRoute = optimizedRoute.map(({ x, y, ...pt }) => pt);
+            }
+        }
+
+        // Stop if:
+        // 1. It's a custom route (hex size changes do not apply)
+        // 2. The route generated has more than 70 points
+        // 3. Total raw points available is 70 or less (cannot produce > 70 points)
+        if (isCustom || finalRoute.length > 70 || rawPoints.length <= 70) {
+            break;
+        }
+
+        // Dynamically scale hex size up by 200m and retry
+        currentHexSize += 200;
     }
 
-    if (targetPointsRaw.length === 0) {
-        self.postMessage([]);
-        return;
-    }
-
-    const projectedPoints = targetPointsRaw.map(projectPoint);
-    const optimizedRoute = twoOptTSP(projectedPoints, { 
-        startIndices: candidateStartIndices, 
-        timeLimitMs 
-    });
-    
-    if (!optimizedRoute) {
-        self.postMessage([]);
-        return;
-    }
-
-    const finalRoute = optimizedRoute.map(({ x, y, ...pt }) => pt);
     self.postMessage(finalRoute);
 };
