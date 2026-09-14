@@ -456,9 +456,17 @@ self.onmessage = async function (e) {
     }
 
     let currentHexSize = baseGrid ? baseGrid.hexSizeMeters : 0;
-    let finalRoute = [];
+    let bestFallbackRoute = [];
+    let bestDiffTo250 = Infinity;
+    const visitedSizes = new Set();
 
     while (true) {
+        // Prevent re-evaluating the same size or dropping below 0m
+        if (visitedSizes.has(currentHexSize) || currentHexSize <= 0) {
+            break;
+        }
+        visitedSizes.add(currentHexSize);
+
         let targetPointsRaw = [];
         let candidateStartIndices = [];
 
@@ -486,6 +494,7 @@ self.onmessage = async function (e) {
             }
         }
 
+        let currentRoute = [];
         if (targetPointsRaw.length > 0) {
             const projectedPoints = targetPointsRaw.map(projectPoint);
             const optimizedRoute = twoOptTSP(projectedPoints, { 
@@ -494,21 +503,35 @@ self.onmessage = async function (e) {
             });
 
             if (optimizedRoute) {
-                finalRoute = optimizedRoute.map(({ x, y, ...pt }) => pt);
+                currentRoute = optimizedRoute.map(({ x, y, ...pt }) => pt);
             }
         }
 
-        // Stop if:
-        // 1. It's a custom route (hex size changes do not apply)
-        // 2. The route generated has more than 70 points
-        // 3. Total raw points available is 70 or less (cannot produce > 70 points)
-        if (isCustom || finalRoute.length > 70 || rawPoints.length <= 70) {
+        const count = currentRoute.length;
+
+        // Keep track of the route closest to 250 coordinates for fallback
+        const diff = Math.abs(count - 250);
+        if (diff < bestDiffTo250 && count > 0) {
+            bestDiffTo250 = diff;
+            bestFallbackRoute = currentRoute;
+        }
+
+        // Return immediately if:
+        // 1. Custom route
+        // 2. Count fits in the target range (71..250 coords)
+        // 3. Total raw input points are <= 70 (impossible to grow past 70)
+        if (isCustom || (count > 70 && count <= 250) || rawPoints.length <= 70) {
+            bestFallbackRoute = currentRoute;
             break;
         }
 
-        // Dynamically scale hex size up by 200m and retry
-        currentHexSize += 200;
+        // Adjust hex size dynamically based on outcome
+        if (count <= 70) {
+            currentHexSize += 200;
+        } else if (count > 250) {
+            currentHexSize -= 100;
+        }
     }
 
-    self.postMessage(finalRoute);
+    self.postMessage(bestFallbackRoute);
 };
