@@ -6,6 +6,10 @@ let timerInterval = null;
 // Update this URL if the project gains a formal donation channel (Ko-fi, Sponsors, etc.).
 const DONATE_URL = 'https://github.com/PriyankVashiar/PoGoMaps-TaskList';
 
+// WI-06: official artwork is loaded from PokeAPI sprites CDN (not vendored in-repo).
+const POKEMON_ARTWORK_CDN =
+    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork';
+
 const CITY_CONFIGS = {
     "https://nycpokemap.com": { cityKey: "nyc", name: "New York", refreshUtcHour: 4, refreshUtcMinute: 18 },
     "https://vanpokemap.com": { cityKey: "vc", name: "Vancouver", refreshUtcHour: 7, refreshUtcMinute: 18 },
@@ -36,6 +40,18 @@ const escapeXml = (str) => String(str || '')
     .replace(/'/g, '&apos;');
 
 const pad = (num) => String(num).padStart(2, '0');
+
+/**
+ * Resolve a quest reward ID to a PokeAPI official-artwork URL.
+ * Form / costume keys like "58-2792" or "79-g" use the leading national dex number.
+ */
+function getPokemonArtworkUrl(pokemonId) {
+    const raw = String(pokemonId || '').trim();
+    const match = raw.match(/^(\d+)/);
+    const id = match ? match[1] : raw;
+    if (!id) return '';
+    return `${POKEMON_ARTWORK_CDN}/${id}.png`;
+}
 
 function getSelectedCityConfig() {
     const select = document.getElementById('city-select');
@@ -242,9 +258,11 @@ function renderCards() {
                 labelWrapper.className = 'row-label-wrapper';
 
                 const iconImg = document.createElement('img');
-                iconImg.src = `./assets/pokeapi-official-artwork/${pokemonId}.png`;
+                iconImg.src = getPokemonArtworkUrl(pokemonId);
                 iconImg.alt = pokemonName;
                 iconImg.className = 'encounter-icon';
+                iconImg.loading = 'lazy';
+                iconImg.referrerPolicy = 'no-referrer';
                 iconImg.onerror = () => { iconImg.style.display = 'none'; };
 
                 const labelText = document.createElement('span');
@@ -369,7 +387,7 @@ async function handleRouteGeneration() {
     }
 
     const customStartPoint = getCustomStartLocation();
-    if (customStartPoint === false) return; // Validation error already alerted
+    if (customStartPoint === false) return;
 
     const isCustom = !!customStartPoint;
     const activeFilters = new Set(
