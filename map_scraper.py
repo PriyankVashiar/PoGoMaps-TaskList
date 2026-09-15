@@ -28,43 +28,70 @@ def load_or_init_quest_list():
             pass
     return {"categories": {}}
 
-def fetch_filters(city_config):
-    base_url = f"{city_config['url']}/quests.php"
+def fetch_sydney_filters():
+    """
+    Fetches raw filter options specifically from Sydney (sydneypogomap.com).
+    """
+    syd_config = CITIES.get("syd")
+    if not syd_config:
+        raise ValueError("Sydney configuration missing in CITIES dict.")
+
+    base_url = f"{syd_config['url']}/quests.php"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": f"{city_config['url']}/"
+        "Referer": f"{syd_config['url']}/"
     }
     params = {
-        "quests[]": "7,0,113",
         "time": int(datetime.now().timestamp() * 1000)
     }
-    
+
     response = requests.get(base_url, params=params, headers=headers)
     response.raise_for_status()
     return response.json().get("filters", {})
 
 def update_quest_list_structure(quest_list, filters):
+    """
+    Reconstructs and prunes quest_list categories using the latest filter payload.
+    Removes stardust amounts and reward IDs no longer active in today's filters.
+    """
     categories_to_keep = ["t2", "t3", "t7", "t12"]
     categories = quest_list.setdefault("categories", {})
+
+    # Prune any categories outside our target scope
+    for cat in list(categories.keys()):
+        if f"t{cat}" not in categories_to_keep:
+            del categories[cat]
 
     for cat_key in categories_to_keep:
         clean_cat = cat_key.replace("t", "")
         if clean_cat not in categories:
             categories[clean_cat] = {}
 
-        if cat_key in filters and isinstance(filters[cat_key], list):
-            if clean_cat == "3":
-                stardust_dict = categories[clean_cat].setdefault("0", {})
-                for amount in filters[cat_key]:
-                    amount_str = str(amount)
-                    if amount_str not in stardust_dict:
-                        stardust_dict[amount_str] = []
-            else:
-                for reward_id in filters[cat_key]:
-                    reward_str = str(reward_id)
-                    if reward_str not in categories[clean_cat]:
-                        categories[clean_cat][reward_str] = {}
+        cat_filters = filters.get(cat_key, [])
+        valid_items = set(str(item) for item in (cat_filters.keys() if isinstance(cat_filters, dict) else cat_filters))
 
+        if clean_cat == "3":
+            stardust_dict = categories[clean_cat].setdefault("0", {})
+
+            # Remove stardust amounts (e.g., 10000) not returned in today's filters
+            for old_amount in list(stardust_dict.keys()):
+                if old_amount not in valid_items:
+                    del stardust_dict[old_amount]
+
+            # Initialize missing active stardust amounts
+            for amount_str in valid_items:
+                if amount_str not in stardust_dict or not isinstance(stardust_dict[amount_str], list):
+                    stardust_dict[amount_str] = []
+        else:
+            # Remove reward IDs not returned in today's filters
+            for old_id in list(categories[clean_cat].keys()):
+                if old_id not in valid_items:
+                    del categories[clean_cat][old_id]
+
+            # Initialize missing active reward IDs
+            for reward_str in valid_items:
+                if reward_str not in categories[clean_cat]:
+                    categories[clean_cat][reward_str] = {}
 def fetch_current_quests(city_key, city_config, quest_list):
     base_url = f"{city_config['url']}/quests.php"
     headers = {
@@ -91,7 +118,6 @@ def fetch_current_quests(city_key, city_config, quest_list):
     response.encoding = 'utf-8'
     current_quests_data = response.json()
 
-    # Save output to static JSON filename (overwrites automatically)
     out_filename = f"{city_key}_quests.json"
     out_path = os.path.join(JSON_DIR, out_filename)
 
@@ -137,9 +163,6 @@ def scrape_city(city_key, quest_list):
     city_config = CITIES[city_key]
     print(f"\n--- Scraping {city_config['name']} ({city_key}) ---")
     
-    filters = fetch_filters(city_config)
-    update_quest_list_structure(quest_list, filters)
-    
     current_quests = fetch_current_quests(city_key, city_config, quest_list)
     populate_quest_list(quest_list, current_quests)
 
@@ -148,6 +171,12 @@ def main():
         ensure_json_dir()
         quest_list = load_or_init_quest_list()
 
+        # Step 1: Update Master Quest List structure from Sydney filters
+        print("\n--- Updating Master List Structure from Sydney Filters ---")
+        syd_filters = fetch_sydney_filters()
+        update_quest_list_structure(quest_list, syd_filters)
+
+        # Step 2: Fetch active quest data for target cities
         target = sys.argv[1].lower() if len(sys.argv) > 1 else "all"
 
         if target == "all":
@@ -156,6 +185,7 @@ def main():
         else:
             scrape_city(target, quest_list)
 
+        # Step 3: Save updated Master List
         quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
         with open(quest_list_path, "w", encoding="utf-8") as f:
             json.dump(quest_list, f, indent=2, ensure_ascii=False)
