@@ -161,7 +161,6 @@ body {
     transform: translateY(-1px);
 }
 
-/* WI-07 / WI-08 status banner */
 .status-bar {
     margin: 0 0 12px;
     padding: 10px 14px;
@@ -201,6 +200,57 @@ body {
     color: #fca5a5;
 }
 
+.preset-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--card-bg);
+}
+
+.preset-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-right: 4px;
+}
+
+.preset-select {
+    height: 32px;
+    min-width: 140px;
+    background: var(--dropdown-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0 8px;
+    font-size: 13px;
+}
+
+.btn-preset {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--dropdown-bg);
+    color: var(--text-color);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-preset:hover {
+    border-color: var(--accent-color);
+}
+
+.btn-preset-danger:hover {
+    border-color: #ef4444;
+    color: #fca5a5;
+}
+
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -216,7 +266,7 @@ body {
     display: flex;
     flex-direction: column;
     position: relative;
-    height: calc(100vh - 120px);
+    height: calc(100vh - 160px);
     box-sizing: border-box;
 }
 

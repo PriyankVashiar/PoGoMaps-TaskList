@@ -28,25 +28,19 @@
 ## P3 — Frontend structure & UX
 
 ### WI-07 — Frontend hygiene ✅
-
-- Status banner (`#status-bar`) for loading / success / errors
-- `addEventListener` for city, Generate, Donate (no inline onclick)
-- ARIA on multiselects and accordions; Enter/Space/Escape keyboard support
-
 ### WI-08 — Matched-stops preview ✅
+### WI-09 — Filter presets ✅
 
-- After filtering: status shows matched Pokéstop count + sample names
-- After optimization: status shows optimized stop count and download confirmation
-
-### WI-09 — Filter presets 🔲
+- localStorage key `pogo_filter_presets_v1`
+- Save current / Load / Delete / Clear filters
 
 ---
 
 ## P4 — Route optimization
 
-### WI-10 — Document TSP parameters 🔲
-### WI-11 — Deterministic hex starts 🔲
-### WI-12 — Polygonal geofences 🔲
+### WI-10 — Document TSP parameters ✅ (`ROUTING.md`)
+### WI-11 — Deterministic hex starts ✅
+### WI-12 — Polygonal geofences ✅
 
 ---
 
@@ -57,12 +51,6 @@
 
 ---
 
-## P6 — Longer-term
+*Branch `improvements/p0-p1-fixes` implements WI-01 through WI-12.*
 
-| ID | Title | Status |
-|----|--------|--------|
-| WI-15–20 | Product / polish ideas | 🔲 |
-
----
-
-*Branch `improvements/p0-p1-fixes` implements WI-01 through WI-08.*
+*Paste-ready PR body: `PR_DESCRIPTION.md`*
