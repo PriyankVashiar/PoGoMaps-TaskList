@@ -1,105 +1,191 @@
+#!/usr/bin/env python3
+"""Scrape daily Pokémon GO field research quests from regional map endpoints."""
+
+from __future__ import annotations
+
+import json
+import logging
 import os
 import sys
-import json
-import requests
-from datetime import datetime
+import time
+from datetime import datetime, timezone
+from typing import Any
 
-# Configured city endpoints and file prefixes
+import requests
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
 CITIES = {
     "nyc": {"name": "New York", "url": "https://nycpokemap.com"},
     "vc": {"name": "Vancouver", "url": "https://vanpokemap.com"},
     "sg": {"name": "Singapore", "url": "https://sgpokemap.com"},
     "syd": {"name": "Sydney", "url": "https://sydneypogomap.com"},
-    "uk": {"name": "London/UK", "url": "https://londonpogomap.com"}
+    "uk": {"name": "London/UK", "url": "https://londonpogomap.com"},
 }
 
 JSON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "JSON")
 
-def ensure_json_dir():
+# Categories we care about (items, stardust, encounters, mega energy)
+CATEGORIES_TO_KEEP = ["t2", "t3", "t7", "t12"]
+
+DEFAULT_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+}
+
+MAX_RETRIES = 4
+BASE_BACKOFF_SECONDS = 1.5
+REQUEST_TIMEOUT_SECONDS = 45
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger("map_scraper")
+
+
+# ---------------------------------------------------------------------------
+# HTTP helpers
+# ---------------------------------------------------------------------------
+
+def request_with_retries(
+    url: str,
+    *,
+    params: Any = None,
+    headers: dict | None = None,
+    max_retries: int = MAX_RETRIES,
+) -> requests.Response:
+    """GET with exponential backoff. Raises on final failure."""
+    last_error: Exception | None = None
+    merged_headers = {**DEFAULT_HEADERS, **(headers or {})}
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.get(
+                url,
+                params=params,
+                headers=merged_headers,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            response.encoding = "utf-8"
+            return response
+        except (requests.RequestException, ValueError) as exc:
+            last_error = exc
+            if attempt >= max_retries:
+                break
+            sleep_for = BASE_BACKOFF_SECONDS * (2 ** (attempt - 1))
+            log.warning(
+                "Request failed (attempt %s/%s) %s — retrying in %.1fs: %s",
+                attempt,
+                max_retries,
+                url,
+                sleep_for,
+                exc,
+            )
+            time.sleep(sleep_for)
+
+    raise RuntimeError(f"Failed after {max_retries} attempts for {url}: {last_error}") from last_error
+
+
+# ---------------------------------------------------------------------------
+# Quest list structure
+# ---------------------------------------------------------------------------
+
+def ensure_json_dir() -> None:
     os.makedirs(JSON_DIR, exist_ok=True)
 
-def load_or_init_quest_list():
+
+def load_or_init_quest_list() -> dict:
     quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
     if os.path.exists(quest_list_path):
         try:
             with open(quest_list_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+        except (OSError, json.JSONDecodeError) as exc:
+            log.warning("Could not load existing Quest_List.json: %s", exc)
     return {"categories": {}}
 
-def fetch_sydney_filters():
-    """
-    Fetches raw filter options specifically from Sydney (sydneypogomap.com).
-    """
-    syd_config = CITIES.get("syd")
-    if not syd_config:
-        raise ValueError("Sydney configuration missing in CITIES dict.")
 
-    base_url = f"{syd_config['url']}/quests.php"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": f"{syd_config['url']}/"
-    }
-    params = {
-        "time": int(datetime.now().timestamp() * 1000)
-    }
+def fetch_city_filters(city_key: str) -> dict:
+    """Fetch the filters payload for a single city."""
+    city_config = CITIES[city_key]
+    base_url = f"{city_config['url']}/quests.php"
+    headers = {"Referer": f"{city_config['url']}/"}
+    params = {"time": int(datetime.now(timezone.utc).timestamp() * 1000)}
 
-    response = requests.get(base_url, params=params, headers=headers)
-    response.raise_for_status()
-    return response.json().get("filters", {})
+    response = request_with_retries(base_url, params=params, headers=headers)
+    payload = response.json()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Unexpected filters response type from {city_key}")
+    return payload.get("filters", {}) or {}
 
-def update_quest_list_structure(quest_list, filters):
+
+def merge_filter_sets(filter_maps: list[dict]) -> dict:
     """
-    Reconstructs and prunes quest_list categories using the latest filter payload.
-    Removes stardust amounts and reward IDs no longer active in today's filters.
+    Union filter keys across cities so the master list is not pruned to a
+    single region (WI-04). Values are sets of string IDs per category key.
     """
-    categories_to_keep = ["t2", "t3", "t7", "t12"]
+    merged: dict[str, set[str]] = {}
+    for filters in filter_maps:
+        for cat_key, raw in filters.items():
+            if cat_key not in CATEGORIES_TO_KEEP:
+                continue
+            items = raw.keys() if isinstance(raw, dict) else (raw or [])
+            bucket = merged.setdefault(cat_key, set())
+            for item in items:
+                bucket.add(str(item))
+    return merged
+
+
+def update_quest_list_structure(quest_list: dict, merged_filters: dict[str, set[str]]) -> None:
+    """
+    Align quest_list categories with the union of active filter IDs.
+    Adds missing reward/stardust slots; removes IDs no longer seen anywhere.
+    """
     categories = quest_list.setdefault("categories", {})
 
-    # Prune any categories outside our target scope
     for cat in list(categories.keys()):
-        if f"t{cat}" not in categories_to_keep:
+        if f"t{cat}" not in CATEGORIES_TO_KEEP:
             del categories[cat]
 
-    for cat_key in categories_to_keep:
+    for cat_key in CATEGORIES_TO_KEEP:
         clean_cat = cat_key.replace("t", "")
         if clean_cat not in categories:
             categories[clean_cat] = {}
 
-        cat_filters = filters.get(cat_key, [])
-        valid_items = set(str(item) for item in (cat_filters.keys() if isinstance(cat_filters, dict) else cat_filters))
+        valid_items = merged_filters.get(cat_key, set())
 
         if clean_cat == "3":
             stardust_dict = categories[clean_cat].setdefault("0", {})
-
-            # Remove stardust amounts (e.g., 10000) not returned in today's filters
             for old_amount in list(stardust_dict.keys()):
                 if old_amount not in valid_items:
                     del stardust_dict[old_amount]
-
-            # Initialize missing active stardust amounts
             for amount_str in valid_items:
                 if amount_str not in stardust_dict or not isinstance(stardust_dict[amount_str], list):
                     stardust_dict[amount_str] = []
         else:
-            # Remove reward IDs not returned in today's filters
             for old_id in list(categories[clean_cat].keys()):
                 if old_id not in valid_items:
                     del categories[clean_cat][old_id]
-
-            # Initialize missing active reward IDs
             for reward_str in valid_items:
                 if reward_str not in categories[clean_cat]:
                     categories[clean_cat][reward_str] = {}
-def fetch_current_quests(city_key, city_config, quest_list):
-    base_url = f"{city_config['url']}/quests.php"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": f"{city_config['url']}/"
-    }
 
-    quest_params = []
+
+def fetch_current_quests(city_key: str, city_config: dict, quest_list: dict) -> dict:
+    base_url = f"{city_config['url']}/quests.php"
+    headers = {"Referer": f"{city_config['url']}/"}
+
+    quest_params: list[str] = []
     categories = quest_list.get("categories", {})
 
     for category, items in categories.items():
@@ -111,12 +197,15 @@ def fetch_current_quests(city_key, city_config, quest_list):
                 quest_params.append(f"{category},0,{reward_id}")
 
     payload = [("quests[]", param) for param in quest_params]
-    payload.append(("time", int(datetime.now().timestamp() * 1000)))
+    payload.append(("time", int(datetime.now(timezone.utc).timestamp() * 1000)))
 
-    response = requests.get(base_url, params=payload, headers=headers)
-    response.raise_for_status()
-    response.encoding = 'utf-8'
+    response = request_with_retries(base_url, params=payload, headers=headers)
     current_quests_data = response.json()
+
+    if not isinstance(current_quests_data, dict):
+        raise ValueError(f"Unexpected quest payload type for {city_key}")
+    if "quests" not in current_quests_data:
+        raise ValueError(f"Missing 'quests' key in payload for {city_key}")
 
     out_filename = f"{city_key}_quests.json"
     out_path = os.path.join(JSON_DIR, out_filename)
@@ -124,77 +213,110 @@ def fetch_current_quests(city_key, city_config, quest_list):
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(current_quests_data, f, indent=2, ensure_ascii=False)
 
-    print(f"Saved: {out_path}")
+    log.info("Saved %s (%s quests)", out_path, len(current_quests_data.get("quests") or []))
     return current_quests_data
 
-def populate_quest_list(quest_list, current_quests_data):
+
+def populate_quest_list(quest_list: dict, current_quests_data: dict) -> None:
     categories = quest_list.get("categories", {})
-    quests = current_quests_data.get("quests", [])
+    quests = current_quests_data.get("quests", []) or []
 
     for q in quests:
         cat = str(q.get("rewards_types", ""))
         reward_id = str(q.get("rewards_ids", "0"))
         amount = str(q.get("rewards_amounts", "0"))
-        condition = q.get("conditions_string", "").strip()
+        condition = (q.get("conditions_string") or "").strip()
 
         if not cat or not condition:
             continue
 
-        if cat in categories:
-            if cat == "3":
-                stardust_dict = categories["3"].setdefault("0", {})
-                if amount not in stardust_dict or isinstance(stardust_dict[amount], dict):
-                    stardust_dict[amount] = []
-                if condition not in stardust_dict[amount]:
-                    stardust_dict[amount].append(condition)
-            else:
-                reward_dict = categories[cat].setdefault(reward_id, {})
-                if amount not in reward_dict or not isinstance(reward_dict[amount], list):
-                    reward_dict[amount] = []
+        if cat not in categories:
+            continue
 
-                if condition not in reward_dict[amount]:
-                    reward_dict[amount].append(condition)
+        if cat == "3":
+            stardust_dict = categories["3"].setdefault("0", {})
+            if amount not in stardust_dict or isinstance(stardust_dict[amount], dict):
+                stardust_dict[amount] = []
+            if condition not in stardust_dict[amount]:
+                stardust_dict[amount].append(condition)
+        else:
+            reward_dict = categories[cat].setdefault(reward_id, {})
+            if amount not in reward_dict or not isinstance(reward_dict[amount], list):
+                reward_dict[amount] = []
+            if condition not in reward_dict[amount]:
+                reward_dict[amount].append(condition)
 
-def scrape_city(city_key, quest_list):
+
+def scrape_city(city_key: str, quest_list: dict) -> None:
     if city_key not in CITIES:
-        print(f"Unknown city key: {city_key}")
-        return
+        raise ValueError(f"Unknown city key: {city_key}")
 
     city_config = CITIES[city_key]
-    print(f"\n--- Scraping {city_config['name']} ({city_key}) ---")
-    
+    log.info("--- Scraping %s (%s) ---", city_config["name"], city_key)
     current_quests = fetch_current_quests(city_key, city_config, quest_list)
     populate_quest_list(quest_list, current_quests)
 
-def main():
-    try:
-        ensure_json_dir()
-        quest_list = load_or_init_quest_list()
 
-        # Step 1: Update Master Quest List structure from Sydney filters
-        print("\n--- Updating Master List Structure from Sydney Filters ---")
-        syd_filters = fetch_sydney_filters()
-        update_quest_list_structure(quest_list, syd_filters)
+def main() -> int:
+    ensure_json_dir()
+    quest_list = load_or_init_quest_list()
 
-        # Step 2: Fetch active quest data for target cities
-        target = sys.argv[1].lower() if len(sys.argv) > 1 else "all"
+    target = sys.argv[1].lower() if len(sys.argv) > 1 else "all"
+    city_keys = list(CITIES.keys()) if target == "all" else [target]
 
-        if target == "all":
-            for city_key in CITIES.keys():
-                scrape_city(city_key, quest_list)
-        else:
-            scrape_city(target, quest_list)
+    if target != "all" and target not in CITIES:
+        log.error("Unknown city key: %s (valid: %s, all)", target, ", ".join(CITIES))
+        return 1
 
-        # Step 3: Save updated Master List
-        quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
-        with open(quest_list_path, "w", encoding="utf-8") as f:
-            json.dump(quest_list, f, indent=2, ensure_ascii=False)
+    # WI-04: collect filters from every city we will scrape (or all cities for "all")
+    filter_source_keys = city_keys if target != "all" else list(CITIES.keys())
+    # Always include all cities when building the master list so pruning is global
+    filter_source_keys = list(CITIES.keys())
 
-        print(f"\nUpdated Master List: {quest_list_path}")
-        print("Pipeline finished successfully!")
+    log.info("--- Updating master list structure from multi-city filters ---")
+    filter_maps: list[dict] = []
+    filter_errors: list[str] = []
+    for key in filter_source_keys:
+        try:
+            filters = fetch_city_filters(key)
+            filter_maps.append(filters)
+            log.info("Fetched filters for %s (%s category keys)", key, len(filters))
+        except Exception as exc:  # noqa: BLE001 — collect and continue
+            filter_errors.append(f"{key}: {exc}")
+            log.error("Failed to fetch filters for %s: %s", key, exc)
 
-    except Exception as e:
-        print(f"Error: {e}")
+    if not filter_maps:
+        log.error("Could not fetch filters from any city. Aborting.")
+        for msg in filter_errors:
+            log.error("  %s", msg)
+        return 1
+
+    merged = merge_filter_sets(filter_maps)
+    update_quest_list_structure(quest_list, merged)
+
+    scrape_errors: list[str] = []
+    for city_key in city_keys:
+        try:
+            scrape_city(city_key, quest_list)
+        except Exception as exc:  # noqa: BLE001
+            scrape_errors.append(f"{city_key}: {exc}")
+            log.error("Scrape failed for %s: %s", city_key, exc)
+
+    quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
+    with open(quest_list_path, "w", encoding="utf-8") as f:
+        json.dump(quest_list, f, indent=2, ensure_ascii=False)
+    log.info("Updated master list: %s", quest_list_path)
+
+    if scrape_errors:
+        log.error("Pipeline finished with %s city failure(s):", len(scrape_errors))
+        for msg in scrape_errors:
+            log.error("  %s", msg)
+        # Partial success still updates Quest_List; fail the job so Actions notice
+        return 1
+
+    log.info("Pipeline finished successfully")
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
