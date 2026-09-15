@@ -6,9 +6,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import requests
@@ -26,6 +27,9 @@ CITIES = {
 }
 
 JSON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "JSON")
+ARCHIVE_DIR = os.path.join(JSON_DIR, "archive")
+# Keep dated snapshots for this many days (WI-05)
+ARCHIVE_RETENTION_DAYS = 7
 
 # Categories we care about (items, stardust, encounters, mega energy)
 CATEGORIES_TO_KEEP = ["t2", "t3", "t7", "t12"]
@@ -95,11 +99,97 @@ def request_with_retries(
 
 
 # ---------------------------------------------------------------------------
+# Archive helpers (WI-05)
+# ---------------------------------------------------------------------------
+
+def today_utc_date_str() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def archive_day_dir(date_str: str | None = None) -> str:
+    day = date_str or today_utc_date_str()
+    path = os.path.join(ARCHIVE_DIR, day)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def write_json(path: str, data: Any) -> None:
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def archive_snapshot(filename: str, data: Any, date_str: str | None = None) -> str:
+    """
+    Write a dated copy under JSON/archive/YYYY-MM-DD/.
+    Overwrites the same-day file if the scraper runs multiple times.
+    """
+    dest = os.path.join(archive_day_dir(date_str), filename)
+    write_json(dest, data)
+    log.info("Archived %s", dest)
+    return dest
+
+
+def preserve_previous_live_file(live_path: str, filename: str) -> None:
+    """
+    If a live file already exists, copy it into today's archive only when
+    there is not already an archive entry for this filename today.
+    This preserves the previous day's content on the first scrape of a new day
+    without clobbering an earlier same-day archive of the new data.
+    """
+    if not os.path.isfile(live_path):
+        return
+
+    day_dir = archive_day_dir()
+    archived_today = os.path.join(day_dir, filename)
+    if os.path.isfile(archived_today):
+        return
+
+    try:
+        shutil.copy2(live_path, archived_today)
+        log.info("Preserved previous live file into archive: %s", archived_today)
+    except OSError as exc:
+        log.warning("Could not preserve previous live file %s: %s", live_path, exc)
+
+
+def prune_old_archives(retention_days: int = ARCHIVE_RETENTION_DAYS) -> None:
+    """Delete JSON/archive/YYYY-MM-DD folders older than retention_days."""
+    if not os.path.isdir(ARCHIVE_DIR):
+        return
+
+    cutoff = datetime.now(timezone.utc).date() - timedelta(days=retention_days)
+    removed = 0
+
+    for name in os.listdir(ARCHIVE_DIR):
+        path = os.path.join(ARCHIVE_DIR, name)
+        if not os.path.isdir(path):
+            continue
+        try:
+            folder_date = datetime.strptime(name, "%Y-%m-%d").date()
+        except ValueError:
+            log.warning("Skipping non-dated archive entry: %s", name)
+            continue
+        if folder_date < cutoff:
+            try:
+                shutil.rmtree(path)
+                removed += 1
+                log.info("Pruned old archive folder: %s", name)
+            except OSError as exc:
+                log.warning("Failed to prune %s: %s", path, exc)
+
+    if removed:
+        log.info("Pruned %s archive folder(s) older than %s days", removed, retention_days)
+
+
+# ---------------------------------------------------------------------------
 # Quest list structure
 # ---------------------------------------------------------------------------
 
 def ensure_json_dir() -> None:
     os.makedirs(JSON_DIR, exist_ok=True)
+    os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
 
 def load_or_init_quest_list() -> dict:
@@ -111,7 +201,7 @@ def load_or_init_quest_list() -> dict:
             if isinstance(data, dict):
                 return data
         except (OSError, json.JSONDecodeError) as exc:
-            log.warning("Could not load existing Quest_List.json: %s", exc)
+            log.warning("Could not load existing Quest_List.json: %s", exp if False else exc)
     return {"categories": {}}
 
 
@@ -210,8 +300,10 @@ def fetch_current_quests(city_key: str, city_config: dict, quest_list: dict) -> 
     out_filename = f"{city_key}_quests.json"
     out_path = os.path.join(JSON_DIR, out_filename)
 
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(current_quests_data, f, indent=2, ensure_ascii=False)
+    # WI-05: keep history before overwriting the live file
+    preserve_previous_live_file(out_path, out_filename)
+    write_json(out_path, current_quests_data)
+    archive_snapshot(out_filename, current_quests_data)
 
     log.info("Saved %s (%s quests)", out_path, len(current_quests_data.get("quests") or []))
     return current_quests_data
@@ -268,8 +360,6 @@ def main() -> int:
         log.error("Unknown city key: %s (valid: %s, all)", target, ", ".join(CITIES))
         return 1
 
-    # WI-04: collect filters from every city we will scrape (or all cities for "all")
-    filter_source_keys = city_keys if target != "all" else list(CITIES.keys())
     # Always include all cities when building the master list so pruning is global
     filter_source_keys = list(CITIES.keys())
 
@@ -300,18 +390,20 @@ def main() -> int:
             scrape_city(city_key, quest_list)
         except Exception as exc:  # noqa: BLE001
             scrape_errors.append(f"{city_key}: {exc}")
-            log.error("Scrape failed for %s: %s", city_key, exc)
+            log.error("Scrape failed for %s: %s", city_key, exp if False else exc)
 
     quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
-    with open(quest_list_path, "w", encoding="utf-8") as f:
-        json.dump(quest_list, f, indent=2, ensure_ascii=False)
+    preserve_previous_live_file(quest_list_path, "Quest_List.json")
+    write_json(quest_list_path, quest_list)
+    archive_snapshot("Quest_List.json", quest_list)
     log.info("Updated master list: %s", quest_list_path)
+
+    prune_old_archives(ARCHIVE_RETENTION_DAYS)
 
     if scrape_errors:
         log.error("Pipeline finished with %s city failure(s):", len(scrape_errors))
         for msg in scrape_errors:
             log.error("  %s", msg)
-        # Partial success still updates Quest_List; fail the job so Actions notice
         return 1
 
     log.info("Pipeline finished successfully")
