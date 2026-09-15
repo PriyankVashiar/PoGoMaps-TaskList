@@ -1,0 +1,15 @@
+# WI-06: Pokémon official artwork is loaded from the PokeAPI CDN at runtime.
+# Do not vendor the bulk PNG set back into the repository.
+assets/pokeapi-official-artwork/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

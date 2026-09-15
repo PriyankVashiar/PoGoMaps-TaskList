@@ -36,16 +36,34 @@ PoGoMaps-TaskList/
 ├── .github/
 │   └── workflows/
 │       └── run_scraper.yml    # Daily automated scraper workflow
-├── assets/                    # Item icons & official Pokémon artwork
+├── assets/
+│   ├── icons/                 # Small set of item icons (local)
+│   └── pokeapi-official-artwork/  # Not vendored — see CDN note below
 ├── JSON/
-│   ├── Quest_List.json        # Global quest categories & condition schema
-│   ├── pokedex.json           # ID-to-English Pokémon name map
-│   └── <city>_quests.json     # Daily city-specific quest datasets
-├── index.html                 # Main interface and card layouts
-├── script.js                  # UI logic, fetch handlers, and GPX builder
-├── worker.js                  # Web Worker for geofencing & 2-Opt TSP optimization
-├── map_scraper.py             # Python scraper for fetching regional map payloads
-└── requirements.txt           # Python dependencies for scraper
+│   ├── archive/               # Dated quest snapshots (scraper retention)
+│   ├── Quest_List.json
+│   ├── pokedex.json
+│   └── <city>_quests.json
+├── index.html
+├── script.js
+├── worker.js
+├── map_scraper.py
+└── requirements.txt
+```
+
+### Artwork (CDN)
+
+Pokémon encounter images are **not** shipped in the repository. The UI loads them from the [PokeAPI sprites](https://github.com/PokeAPI/sprites) CDN:
+
+`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{id}.png`
+
+Item icons remain under `assets/icons/`. Missing artwork is hidden via the existing `onerror` handler.
+
+To stop tracking any previously committed PNGs:
+
+```bash
+git rm -r --cached assets/pokeapi-official-artwork
+git commit -m "chore: stop tracking vendored Pokémon artwork"
 ```
 
 ---
@@ -61,7 +79,7 @@ PoGoMaps-TaskList/
 
 1. **Scrape**: `map_scraper.py` queries live map endpoints for active Pokéstops, parses active rewards and conditions, and dumps structured data to `JSON/<city_slug>_quests.json`.
 2. **Select**: Users load the web interface and select desired rewards or task conditions via multi-select dropdowns.
-3. **Optimize**: Upon clicking **Generate & Download GPX**, matched coordinates are sent to `worker.js`. The worker eliminates out-of-bounds nodes, removes isolated points, and runs a 2-Opt TSP solver.
+3. **Optimize**: Upon clicking **Generate Route**, matched coordinates are sent to `worker.js`. The worker eliminates out-of-bounds nodes, removes isolated points, and runs a 2-Opt TSP solver.
 4. **Export**: An XML-formatted `.gpx` file containing the optimized sequence of Pokéstops is generated and downloaded to your browser.
 
 ---
@@ -94,11 +112,13 @@ python map_scraper.py syd
 python map_scraper.py all
 ```
 
+Dated copies are written under `JSON/archive/YYYY-MM-DD/` (7-day retention by default).
+
 ---
 
 ## 🚀 GitHub Actions Automation
 
-Automated daily scraping is powered by `.github/workflows/run_scraper.yml`. 
+Automated daily scraping is powered by `.github/workflows/run_scraper.yml`.
 
 * **Schedules**: Runs automatically at staggered intervals throughout the day to mirror regional quest resets.
 * **Manual Triggers**: Can be executed on demand via the **Actions** tab on GitHub using the `workflow_dispatch` trigger to update quest data for specific cities at any time.
@@ -110,4 +130,3 @@ Automated daily scraping is powered by `.github/workflows/run_scraper.yml`.
 * **Map Creators**: Creators of `nycpokemap.com`, `sgpokemap.com`, `sydneypogomap.com`, `vanpokemap.com`, and `londonpogomap.com` for providing public map endpoints and data feeds.
 * **[PokeAPI/sprites](https://github.com/PokeAPI/sprites)**: For providing high-quality Pokémon artwork and item icons.
 * **[Purukitto/pokemon-data.json](https://github.com/Purukitto/pokemon-data.json)**: For providing the Pokédex data structure and mappings.
-``░
