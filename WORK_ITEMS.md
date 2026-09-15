@@ -23,21 +23,21 @@
 
 ### WI-06 — Reduce repo / GitHub Pages size (Pokémon artwork) ✅
 
-**Done in:** `improvements/p0-p1-fixes`
-
-- Encounter icons load from PokeAPI official-artwork CDN (`getPokemonArtworkUrl` in `script.js`)
-- `loading="lazy"` + `onerror` hide for missing images
-- `.gitignore` blocks `assets/pokeapi-official-artwork/`
-- README + folder README document CDN and `git rm --cached` to drop tracked PNGs
-
-**Follow-up (manual):** run `git rm -r --cached assets/pokeapi-official-artwork` (keep README if desired) so existing blobs stop being checked out. Full history rewrite is optional for max size savings.
-
 ---
 
 ## P3 — Frontend structure & UX
 
-### WI-07 — Frontend hygiene 🔲
-### WI-08 — Matched-stops preview 🔲
+### WI-07 — Frontend hygiene ✅
+
+- Status banner (`#status-bar`) for loading / success / errors
+- `addEventListener` for city, Generate, Donate (no inline onclick)
+- ARIA on multiselects and accordions; Enter/Space/Escape keyboard support
+
+### WI-08 — Matched-stops preview ✅
+
+- After filtering: status shows matched Pokéstop count + sample names
+- After optimization: status shows optimized stop count and download confirmation
+
 ### WI-09 — Filter presets 🔲
 
 ---
@@ -65,4 +65,4 @@
 
 ---
 
-*Branch `improvements/p0-p1-fixes` implements WI-01 through WI-06.*
+*Branch `improvements/p0-p1-fixes` implements WI-01 through WI-08.*
