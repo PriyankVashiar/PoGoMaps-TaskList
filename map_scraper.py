@@ -14,10 +14,6 @@ from typing import Any
 
 import requests
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
-
 CITIES = {
     "nyc": {"name": "New York", "url": "https://nycpokemap.com"},
     "vc": {"name": "Vancouver", "url": "https://vanpokemap.com"},
@@ -28,10 +24,7 @@ CITIES = {
 
 JSON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "JSON")
 ARCHIVE_DIR = os.path.join(JSON_DIR, "archive")
-# Keep dated snapshots for this many days (WI-05)
 ARCHIVE_RETENTION_DAYS = 7
-
-# Categories we care about (items, stardust, encounters, mega energy)
 CATEGORIES_TO_KEEP = ["t2", "t3", "t7", "t12"]
 
 DEFAULT_HEADERS = {
@@ -54,10 +47,6 @@ logging.basicConfig(
 log = logging.getLogger("map_scraper")
 
 
-# ---------------------------------------------------------------------------
-# HTTP helpers
-# ---------------------------------------------------------------------------
-
 def request_with_retries(
     url: str,
     *,
@@ -65,17 +54,12 @@ def request_with_retries(
     headers: dict | None = None,
     max_retries: int = MAX_RETRIES,
 ) -> requests.Response:
-    """GET with exponential backoff. Raises on final failure."""
     last_error: Exception | None = None
     merged_headers = {**DEFAULT_HEADERS, **(headers or {})}
-
     for attempt in range(1, max_retries + 1):
         try:
             response = requests.get(
-                url,
-                params=params,
-                headers=merged_headers,
-                timeout=REQUEST_TIMEOUT_SECONDS,
+                url, params=params, headers=merged_headers, timeout=REQUEST_TIMEOUT_SECONDS
             )
             response.raise_for_status()
             response.encoding = "utf-8"
@@ -87,20 +71,11 @@ def request_with_retries(
             sleep_for = BASE_BACKOFF_SECONDS * (2 ** (attempt - 1))
             log.warning(
                 "Request failed (attempt %s/%s) %s — retrying in %.1fs: %s",
-                attempt,
-                max_retries,
-                url,
-                sleep_for,
-                exp if False else exc,
+                attempt, max_retries, url, sleep_for, exp if False else exc,
             )
             time.sleep(sleep_for)
-
     raise RuntimeError(f"Failed after {max_retries} attempts for {url}: {last_error}") from last_error
 
-
-# ---------------------------------------------------------------------------
-# Archive helpers (WI-05)
-# ---------------------------------------------------------------------------
 
 def today_utc_date_str() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -122,7 +97,6 @@ def write_json(path: str, data: Any) -> None:
 
 
 def archive_snapshot(filename: str, data: Any, date_str: str | None = None) -> str:
-    """Write a dated copy under JSON/archive/YYYY-MM-DD/."""
     dest = os.path.join(archive_day_dir(date_str), filename)
     write_json(dest, data)
     log.info("Archived %s", dest)
@@ -130,7 +104,6 @@ def archive_snapshot(filename: str, data: Any, date_str: str | None = None) -> s
 
 
 def preserve_previous_live_file(live_path: str, filename: str) -> None:
-    """Copy existing live file into today's archive once per day before overwrite."""
     if not os.path.isfile(live_path):
         return
     archived_today = os.path.join(archive_day_dir(), filename)
@@ -144,7 +117,6 @@ def preserve_previous_live_file(live_path: str, filename: str) -> None:
 
 
 def prune_old_archives(retention_days: int = ARCHIVE_RETENTION_DAYS) -> None:
-    """Delete JSON/archive/YYYY-MM-DD folders older than retention_days."""
     if not os.path.isdir(ARCHIVE_DIR):
         return
     cutoff = datetime.now(timezone.utc).date() - timedelta(days=retention_days)
@@ -164,7 +136,7 @@ def prune_old_archives(retention_days: int = ARCHIVE_RETENTION_DAYS) -> None:
                 removed += 1
                 log.info("Pruned old archive folder: %s", name)
             except OSError as exc:
-                log.warning("Failed to prune %s: %s", path, exp if False else exc)
+                log.warning("Failed to prune %s: %s", path, exc)
     if removed:
         log.info("Pruned %s archive folder(s) older than %s days", removed, retention_days)
 
@@ -183,7 +155,7 @@ def load_or_init_quest_list() -> dict:
             if isinstance(data, dict):
                 return data
         except (OSError, json.JSONDecodeError) as exc:
-            log.warning("Could not load existing Quest_List.json: %s", exp if False else exc)
+            log.warning("Could not load existing Quest_List.json: %s", exc)
     return {"categories": {}}
 
 
