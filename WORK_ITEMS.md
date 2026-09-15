@@ -9,39 +9,34 @@ Derived from a full codebase analysis of the Pokémon GO Quest Route Generator.
 ## P0 — Quick wins / bugs
 
 ### WI-01 — Fix undefined `handleDonate` (runtime error) ✅
-
-**Done in:** `improvements/p0-p1-fixes`
-
-Implemented `handleDonate()` with a configurable `DONATE_URL` (defaults to the upstream repository). Maintainer can point it at Ko-fi / Sponsors later.
-
 ### WI-02 — Consistent Generate-button / Worker cleanup ✅
-
-**Done in:** `improvements/p0-p1-fixes`
-
-Refactored `handleRouteGeneration` to use async/await around the Worker, a single `finally` that always terminates the worker and resets the button, and `URL.revokeObjectURL` after download.
 
 ---
 
 ## P1 — Reliability & data pipeline
 
 ### WI-03 — Scraper resilience: retries, exit codes, logging ✅
-
-**Done in:** `improvements/p0-p1-fixes`
-
-- `request_with_retries` with exponential backoff
-- Structured logging
-- Non-zero exit codes on failure (Actions-friendly)
-- Minimal payload validation before writing city JSON
-
 ### WI-04 — Multi-city aware Quest_List schema updates ✅
 
+### WI-05 — Optional quest data history / archive ✅
+
 **Done in:** `improvements/p0-p1-fixes`
 
-Master list structure is now built from the **union** of filter keys across all configured cities, not Sydney alone.
+Layout:
+```
+JSON/archive/YYYY-MM-DD/
+  nyc_quests.json
+  vc_quests.json
+  ...
+  Quest_List.json
+```
 
-### WI-05 — Optional quest data history / archive 🔲
-
-Date-stamped archives under `JSON/archive/` with retention — still open.
+Behavior:
+- Live files under `JSON/` remain the current snapshot used by the web app
+- Each successful scrape also writes dated copies under `JSON/archive/YYYY-MM-DD/`
+- On the first scrape of a new UTC day, the previous live file is preserved into that day folder before overwrite
+- `prune_old_archives()` deletes dated folders older than `ARCHIVE_RETENTION_DAYS` (default **7**)
+- Retention is configurable via `ARCHIVE_RETENTION_DAYS` in `map_scraper.py`
 
 ---
 
@@ -49,36 +44,32 @@ Date-stamped archives under `JSON/archive/` with retention — still open.
 
 ### WI-06 — Reduce repo / GitHub Pages size (Pokémon artwork) 🔲
 
-CDN or prune to active encounter IDs.
-
 ---
 
 ## P3 — Frontend structure & UX
 
-### WI-07 — Frontend hygiene: modules, event binding, status UI, a11y 🔲
-### WI-08 — Matched-stops preview before GPX download 🔲
-### WI-09 — Filter presets (localStorage) 🔲
+### WI-07 — Frontend hygiene 🔲
+### WI-08 — Matched-stops preview 🔲
+### WI-09 — Filter presets 🔲
 
 ---
 
-## P4 — Route optimization improvements
+## P4 — Route optimization
 
-### WI-10 — Document and optionally expose clustering / TSP parameters 🔲
-### WI-11 — Deterministic start selection inside hexes 🔲
-### WI-12 — True polygonal geofences 🔲
+### WI-10 — Document TSP parameters 🔲
+### WI-11 — Deterministic hex starts 🔲
+### WI-12 — Polygonal geofences 🔲
 
 ---
 
 ## P5 — Tooling, tests, CI
 
-### WI-13 — Add basic tests and linting 🔲
-### WI-14 — Harden GitHub Actions scraper workflow 🔲
-
-(Partial benefit from WI-03 exit codes already.)
+### WI-13 — Tests and linting 🔲
+### WI-14 — Harden Actions workflow 🔲
 
 ---
 
-## P6 — Product / longer-term ideas
+## P6 — Longer-term
 
 | ID | Title | Status |
 |----|--------|--------|
@@ -91,4 +82,4 @@ CDN or prune to active encounter IDs.
 
 ---
 
-*Branch `improvements/p0-p1-fixes` implements WI-01 through WI-04.*
+*Branch `improvements/p0-p1-fixes` implements WI-01 through WI-05.*
