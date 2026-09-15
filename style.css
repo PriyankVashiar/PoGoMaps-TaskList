@@ -1,13 +1,17 @@
 :root {
-    --bg-color: #000000;         /* True AMOLED Pitch Black */
-    --card-bg: #0b0c10;         /* Elevated surface near black */
-    --dropdown-bg: #12141d;     /* Deep dark background for inputs/panels */
-    --accent-color: #38bdf8;     /* Electric vibrant cyan */
-    --text-color: #38bdf8;       /* All text turned to Cyan */
-    --text-muted: #0284c7;       /* Muted cyan text */
-    --border-color: #1f2430;     /* High-contrast separator */
-    --button-bg: #10b981;       /* Electric Emerald Green */
+    --bg-color: #000000;
+    --card-bg: #0b0c10;
+    --dropdown-bg: #12141d;
+    --accent-color: #38bdf8;
+    --text-color: #38bdf8;
+    --text-muted: #0284c7;
+    --border-color: #1f2430;
+    --button-bg: #10b981;
     --button-hover: #059669;
+    --status-info-bg: rgba(56, 189, 248, 0.12);
+    --status-ok-bg: rgba(16, 185, 129, 0.15);
+    --status-err-bg: rgba(239, 68, 68, 0.15);
+    --status-err-border: #ef4444;
 }
 
 body {
@@ -20,7 +24,6 @@ body {
     overflow-x: hidden;
 }
 
-/* Header Container Layout */
 .header-container {
     display: flex;
     align-items: center;
@@ -44,7 +47,6 @@ body {
     letter-spacing: -0.5px;
 }
 
-/* City Dropdown */
 .city-dropdown {
     height: 40px;
     background-color: var(--dropdown-bg);
@@ -71,13 +73,12 @@ body {
     color: var(--text-color);
 }
 
-.city-dropdown:hover, 
+.city-dropdown:hover,
 .city-dropdown:focus {
     border-color: var(--accent-color);
     box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
 }
 
-/* Unified Single-Line Route Controls Component */
 .route-controls {
     display: flex;
     align-items: center;
@@ -99,7 +100,6 @@ body {
     line-height: 1;
 }
 
-/* Input Box Styling */
 .control-input {
     width: 380px;
     padding: 0 14px;
@@ -121,7 +121,6 @@ body {
     box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
 }
 
-/* Generate Route Button */
 .btn-primary {
     padding: 0 20px;
     background-color: var(--button-bg);
@@ -146,7 +145,6 @@ body {
     transform: none;
 }
 
-/* Donate Button */
 .btn-secondary {
     padding: 0 20px;
     background-color: #161b22;
@@ -163,14 +161,52 @@ body {
     transform: translateY(-1px);
 }
 
-/* Card Grid Layout */
+/* WI-07 / WI-08 status banner */
+.status-bar {
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--status-info-bg);
+    color: var(--text-color);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.status-bar[hidden] {
+    display: none;
+}
+
+.status-bar.status-ok {
+    background: var(--status-ok-bg);
+    border-color: var(--button-bg);
+}
+
+.status-bar.status-error {
+    background: var(--status-err-bg);
+    border-color: var(--status-err-border);
+    color: #fca5a5;
+}
+
+.status-bar .status-detail {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.status-bar.status-error .status-detail {
+    color: #fca5a5;
+}
+
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 16px;
 }
 
-/* Dynamic Full-Height Card */
 .card {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -180,7 +216,7 @@ body {
     display: flex;
     flex-direction: column;
     position: relative;
-    height: calc(100vh - 85px);
+    height: calc(100vh - 120px);
     box-sizing: border-box;
 }
 
@@ -203,7 +239,6 @@ body {
     object-fit: contain;
 }
 
-/* Card Body Scrollable Area */
 .card-body {
     flex-grow: 1;
     overflow-y: auto;
@@ -213,16 +248,15 @@ body {
     color: var(--text-color);
 }
 
-.card-body::-webkit-scrollbar { 
-    width: 4px; 
+.card-body::-webkit-scrollbar {
+    width: 4px;
 }
 
-.card-body::-webkit-scrollbar-thumb { 
-    background: var(--border-color); 
-    border-radius: 4px; 
+.card-body::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
 }
 
-/* Accordion Component Styles */
 .accordion {
     background-color: var(--dropdown-bg);
     color: var(--text-color);
@@ -257,7 +291,7 @@ body {
     object-fit: contain;
 }
 
-.accordion:hover, 
+.accordion:hover,
 .accordion.active {
     background-color: rgba(56, 189, 248, 0.12);
     border-color: var(--accent-color);
@@ -291,7 +325,6 @@ body {
     overflow: visible !important;
 }
 
-/* Row Layout */
 .row-item {
     display: flex;
     align-items: center;
@@ -326,7 +359,6 @@ body {
     color: var(--text-color);
 }
 
-/* Custom Multiselect Box */
 .custom-multiselect {
     position: relative;
     flex-grow: 1;
@@ -358,6 +390,11 @@ body {
     font-size: 9px;
     margin-left: 8px;
     color: var(--text-color);
+}
+
+.select-box:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
 }
 
 .checkboxes-container {
@@ -411,26 +448,6 @@ body {
     accent-color: var(--accent-color);
 }
 
-.multiselect-actions {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 14px;
-    border-bottom: 1px solid var(--border-color);
-    font-size: 12px;
-    color: var(--text-color);
-}
-
-.action-link {
-    color: var(--text-color);
-    cursor: pointer;
-    font-weight: 600;
-}
-
-.action-link:hover {
-    text-decoration: underline;
-}
-
-/* Mobile Adjustments */
 @media (max-width: 900px) {
     .header-container {
         flex-direction: column;

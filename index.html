@@ -8,10 +8,9 @@
 </head>
 <body>
 
-    <!-- Header Toolbar with Inline City Dropdown & Controls -->
     <header class="header-container">
         <div class="header-left">
-            <select id="city-select" class="city-dropdown" onchange="onCityChange()">
+            <select id="city-select" class="city-dropdown" aria-label="Select city">
                 <option value="https://nycpokemap.com" selected>New York</option>
                 <option value="https://vanpokemap.com">Vancouver</option>
                 <option value="https://sgpokemap.com">Singapore</option>
@@ -29,50 +28,49 @@
                 placeholder="Current Location (Lat, Lng) — Leave empty for efficient route"
                 title="Leave empty to auto-calculate the most efficient route."
                 autocomplete="off"
+                aria-label="Optional start coordinates latitude, longitude"
             />
 
-            <button id="generateRouteBtn" class="btn-primary" onclick="handleRouteGeneration()">
+            <button type="button" id="generateRouteBtn" class="btn-primary">
                 Generate Route
             </button>
 
-            <button class="btn-secondary" onclick="handleDonate()">
+            <button type="button" id="donateBtn" class="btn-secondary">
                 ☕ Donate
             </button>
         </div>
     </header>
 
+    <div id="status-bar" class="status-bar" role="status" aria-live="polite" hidden></div>
+
     <div class="cards-grid">
-        <!-- Item Card -->
         <div class="card">
             <div class="card-header">
-                <img src="./assets/icons/Items.png" alt="Items" class="header-icon">
+                <img src="./assets/icons/Items.png" alt="" class="header-icon">
                 Items
             </div>
             <div class="card-body" id="card-2"></div>
         </div>
 
-        <!-- Stardust Card -->
         <div class="card">
             <div class="card-header">
-                <img src="./assets/icons/Stardust.png" alt="Stardust" class="header-icon" referrerpolicy="no-referrer">
+                <img src="./assets/icons/Stardust.png" alt="" class="header-icon" referrerpolicy="no-referrer">
                 Stardust
             </div>
             <div class="card-body" id="card-3"></div>
         </div>
 
-        <!-- Encounters Card -->
         <div class="card">
             <div class="card-header">
-                <img src="./assets/icons/Pokémon.png" alt="Pokémon" class="header-icon">
+                <img src="./assets/icons/Pokémon.png" alt="" class="header-icon">
                 Pokémon
             </div>
             <div class="card-body" id="card-7"></div>
         </div>
 
-        <!-- Mega Energy Card -->
         <div class="card">
             <div class="card-header">
-                <img src="./assets/icons/Mega_Energy.png" alt="Mega Energy" class="header-icon">
+                <img src="./assets/icons/Mega_Energy.png" alt="" class="header-icon">
                 Mega Energy
             </div>
             <div class="card-body" id="card-12"></div>
