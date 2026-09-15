@@ -136,8 +136,8 @@ def preserve_previous_live_file(live_path: str, filename: str) -> None:
     """
     If a live file already exists, copy it into today's archive only when
     there is not already an archive entry for this filename today.
-    This preserves the previous day's content on the first scrape of a new day
-    without clobbering an earlier same-day archive of the new data.
+    Preserves the previous snapshot on the first scrape of a new day without
+    clobbering an earlier same-day archive of the new data.
     """
     if not os.path.isfile(live_path):
         return
@@ -371,9 +371,9 @@ def main() -> int:
             filters = fetch_city_filters(key)
             filter_maps.append(filters)
             log.info("Fetched filters for %s (%s category keys)", key, len(filters))
-        except Exception as exc:  # noqa: BLE001 — collect and continue
-            filter_errors.append(f"{key}: {exc}")
-            log.error("Failed to fetch filters for %s: %s", key, exc)
+        except Exception as exp:
+            filter_errors.append(f"{key}: {exp}")
+            log.error("Failed to fetch filters for %s: %s", key, exp)
 
     if not filter_maps:
         log.error("Could not fetch filters from any city. Aborting.")
@@ -388,9 +388,9 @@ def main() -> int:
     for city_key in city_keys:
         try:
             scrape_city(city_key, quest_list)
-        except Exception as exc:  # noqa: BLE001
-            scrape_errors.append(f"{city_key}: {exc}")
-            log.error("Scrape failed for %s: %s", city_key, exp if False else exc)
+        except Exception as exp:
+            scrape_errors.append(f"{city_key}: {exp}")
+            log.error("Scrape failed for %s: %s", city_key, exp)
 
     quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
     preserve_previous_live_file(quest_list_path, "Quest_List.json")
