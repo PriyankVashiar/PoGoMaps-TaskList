@@ -43,6 +43,17 @@
 
     <div id="status-bar" class="status-bar" role="status" aria-live="polite" hidden></div>
 
+    <div class="preset-bar" aria-label="Filter presets">
+        <label class="preset-label" for="preset-select">Presets</label>
+        <select id="preset-select" class="preset-select" aria-label="Saved filter presets">
+            <option value="">— none —</option>
+        </select>
+        <button type="button" id="preset-load-btn" class="btn-preset">Load</button>
+        <button type="button" id="preset-save-btn" class="btn-preset">Save current</button>
+        <button type="button" id="preset-delete-btn" class="btn-preset btn-preset-danger">Delete</button>
+        <button type="button" id="preset-clear-btn" class="btn-preset">Clear filters</button>
+    </div>
+
     <div class="cards-grid">
         <div class="card">
             <div class="card-header">
