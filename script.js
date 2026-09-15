@@ -55,7 +55,6 @@ function getSelectedCityConfig() {
     };
 }
 
-/** WI-07: inline status banner (info | ok | error) */
 function setStatus(message, type = 'info', detail = '') {
     const el = document.getElementById('status-bar');
     if (!el) return;
@@ -127,6 +126,134 @@ function handleDonate() {
     window.open(DONATE_URL, '_blank', 'noopener,noreferrer');
 }
 
+// --- WI-09: Filter presets (localStorage) ---
+const PRESET_STORAGE_KEY = 'pogo_filter_presets_v1';
+
+function filterKeyFromCheckbox(cb) {
+    return `${cb.dataset.l1},${cb.dataset.l2},${cb.dataset.l3},${cb.value}`;
+}
+
+function loadPresetStore() {
+    try {
+        const raw = localStorage.getItem(PRESET_STORAGE_KEY);
+        if (!raw) return {};
+        const data = JSON.parse(raw);
+        return data && typeof data === 'object' ? data : {};
+    } catch (_) {
+        return {};
+    }
+}
+
+function savePresetStore(store) {
+    localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(store));
+}
+
+function getCheckedFilterKeys() {
+    return Array.from(
+        document.querySelectorAll('.custom-multiselect input[type="checkbox"]:checked')
+    ).map(filterKeyFromCheckbox);
+}
+
+function clearAllFilters() {
+    document.querySelectorAll('.custom-multiselect input[type="checkbox"]').forEach(cb => {
+        if (cb.checked) {
+            cb.checked = false;
+            cb.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+}
+
+function applyFilterKeys(keys) {
+    const want = new Set(keys || []);
+    document.querySelectorAll('.custom-multiselect input[type="checkbox"]').forEach(cb => {
+        const on = want.has(filterKeyFromCheckbox(cb));
+        if (cb.checked !== on) {
+            cb.checked = on;
+            cb.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+}
+
+function refreshPresetSelect() {
+    const select = document.getElementById('preset-select');
+    if (!select) return;
+    const store = loadPresetStore();
+    const names = Object.keys(store).sort((a, b) => a.localeCompare(b));
+    const current = select.value;
+    select.replaceChildren();
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = '— none —';
+    select.appendChild(empty);
+    names.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+    });
+    if (names.includes(current)) select.value = current;
+}
+
+function handlePresetSave() {
+    const name = window.prompt('Name for this filter preset:');
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed) {
+        setStatus('Preset name cannot be empty.', 'error');
+        return;
+    }
+    const keys = getCheckedFilterKeys();
+    if (keys.length === 0) {
+        setStatus('Select at least one filter before saving a preset.', 'error');
+        return;
+    }
+    const store = loadPresetStore();
+    store[trimmed] = keys;
+    savePresetStore(store);
+    refreshPresetSelect();
+    const select = document.getElementById('preset-select');
+    if (select) select.value = trimmed;
+    setStatus(`Saved preset “${trimmed}” (${keys.length} filters).`, 'ok');
+}
+
+function handlePresetLoad() {
+    const select = document.getElementById('preset-select');
+    const name = select?.value;
+    if (!name) {
+        setStatus('Choose a preset to load.', 'error');
+        return;
+    }
+    const store = loadPresetStore();
+    const keys = store[name];
+    if (!keys) {
+        setStatus(`Preset “${name}” not found.`, 'error');
+        return;
+    }
+    applyFilterKeys(keys);
+    const applied = getCheckedFilterKeys().length;
+    setStatus(`Loaded preset “${name}” (${applied} filters active).`, 'ok');
+}
+
+function handlePresetDelete() {
+    const select = document.getElementById('preset-select');
+    const name = select?.value;
+    if (!name) {
+        setStatus('Choose a preset to delete.', 'error');
+        return;
+    }
+    if (!window.confirm(`Delete preset “${name}”?`)) return;
+    const store = loadPresetStore();
+    delete store[name];
+    savePresetStore(store);
+    refreshPresetSelect();
+    setStatus(`Deleted preset “${name}”.`, 'ok');
+}
+
+function handlePresetClear() {
+    clearAllFilters();
+    setStatus('All filters cleared.', 'info');
+}
+
 function bindUiEvents() {
     const citySelect = document.getElementById('city-select');
     if (citySelect) citySelect.addEventListener('change', onCityChange);
@@ -136,6 +263,15 @@ function bindUiEvents() {
 
     const donateBtn = document.getElementById('donateBtn');
     if (donateBtn) donateBtn.addEventListener('click', handleDonate);
+
+    const loadBtn = document.getElementById('preset-load-btn');
+    if (loadBtn) loadBtn.addEventListener('click', handlePresetLoad);
+    const saveBtn = document.getElementById('preset-save-btn');
+    if (saveBtn) saveBtn.addEventListener('click', handlePresetSave);
+    const delBtn = document.getElementById('preset-delete-btn');
+    if (delBtn) delBtn.addEventListener('click', handlePresetDelete);
+    const clearBtn = document.getElementById('preset-clear-btn');
+    if (clearBtn) clearBtn.addEventListener('click', handlePresetClear);
 }
 
 async function init() {
@@ -163,6 +299,7 @@ async function init() {
         pokedexMap = Object.fromEntries(pokedexData.map(pkmn => [String(pkmn.id), pkmn]));
 
         renderCards();
+        refreshPresetSelect();
         setStatus('Ready — select filters and generate a route.', 'ok');
     } catch (err) {
         setStatus(`Error loading configuration: ${err.message}`, 'error');
@@ -515,7 +652,6 @@ async function handleRouteGeneration() {
             return;
         }
 
-        // WI-08: matched-stops preview before optimization
         const sampleNames = matchedCoords
             .filter(p => p.name !== 'Start Location')
             .slice(0, 5)
