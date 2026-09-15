@@ -3,6 +3,9 @@ let questList = {};
 let pokedexMap = {};
 let timerInterval = null;
 
+// Update this URL if the project gains a formal donation channel (Ko-fi, Sponsors, etc.).
+const DONATE_URL = 'https://github.com/PriyankVashiar/PoGoMaps-TaskList';
+
 const CITY_CONFIGS = {
     "https://nycpokemap.com": { cityKey: "nyc", name: "New York", refreshUtcHour: 4, refreshUtcMinute: 18 },
     "https://vanpokemap.com": { cityKey: "vc", name: "Vancouver", refreshUtcHour: 7, refreshUtcMinute: 18 },
@@ -87,6 +90,11 @@ function startRefreshCountdown() {
 
 function onCityChange() {
     updateRefreshCountdown();
+}
+
+/** Opens the configured donation / support URL in a new tab (WI-01). */
+function handleDonate() {
+    window.open(DONATE_URL, '_blank', 'noopener,noreferrer');
 }
 
 // Core Initialization
@@ -352,7 +360,7 @@ function getCustomStartLocation() {
     return { lat, lng };
 }
 
-// Unified GPX Generation and Route Optimization Handler
+// Unified GPX Generation and Route Optimization Handler (WI-02: consistent cleanup)
 async function handleRouteGeneration() {
     const checkedBoxes = document.querySelectorAll('.custom-multiselect input[type="checkbox"]:checked');
     if (checkedBoxes.length === 0) {
@@ -371,10 +379,12 @@ async function handleRouteGeneration() {
     const city = getSelectedCityConfig();
     const btnTarget = document.getElementById('generateRouteBtn') || document.querySelector('.btn-primary');
 
-    if (btnTarget) {
-        btnTarget.textContent = `Fetching ${city.name} Quests...`;
-        btnTarget.disabled = true;
-    }
+    const setBusy = (label) => {
+        if (btnTarget) {
+            btnTarget.textContent = label;
+            btnTarget.disabled = true;
+        }
+    };
 
     const resetButton = () => {
         if (btnTarget) {
@@ -383,10 +393,14 @@ async function handleRouteGeneration() {
         }
     };
 
+    let worker = null;
+
     try {
+        setBusy(`Fetching ${city.name} Quests...`);
+
         const todayStr = new Date().toISOString().split('T')[0];
         const res = await fetch(`./JSON/${city.cityKey}_quests.json?v=${Date.now()}`);
-        
+
         if (!res.ok) {
             throw new Error(`Could not load quest data for ${city.name} (${city.cityKey}_quests.json).`);
         }
@@ -419,79 +433,74 @@ async function handleRouteGeneration() {
         const minRequired = isCustom ? 2 : 1;
         if (matchedCoords.length < minRequired) {
             alert(`No matching Pokéstops found for active filters in ${city.name}.`);
-            resetButton();
             return;
         }
 
-        if (btnTarget) {
-            btnTarget.textContent = 'Optimizing Route...';
-        }
+        setBusy('Optimizing Route...');
 
-        const worker = new Worker(`./worker.js?v=${Date.now()}`);
+        worker = new Worker(`./worker.js?v=${Date.now()}`);
 
-        worker.postMessage({
-            points: matchedCoords,
-            city: city.cityKey,
-            isCustom: isCustom,
-            timeLimitMs: 8000
+        const optimizedRoute = await new Promise((resolve, reject) => {
+            worker.onmessage = (e) => {
+                if (e.data && e.data.error) {
+                    reject(new Error(e.data.error));
+                    return;
+                }
+                resolve(e.data);
+            };
+            worker.onerror = (err) => {
+                reject(new Error(err.message || 'Worker failed'));
+            };
+            worker.postMessage({
+                points: matchedCoords,
+                city: city.cityKey,
+                isCustom: isCustom,
+                timeLimitMs: 8000
+            });
         });
 
-        worker.onmessage = (e) => {
-            try {
-                if (e.data && e.data.error) {
-                    alert(`Worker error: ${e.data.error}`);
-                    return;
-                }
+        if (!Array.isArray(optimizedRoute) || optimizedRoute.length === 0) {
+            alert(`No clusters or pokéstops found within ${city.name} geofence for selected filters.`);
+            return;
+        }
 
-                const optimizedRoute = e.data;
-                if (!Array.isArray(optimizedRoute) || optimizedRoute.length === 0) {
-                    alert(`No clusters or pokéstops found within ${city.name} geofence for selected filters.`);
-                    return;
-                }
+        const gpxParts = [
+            '<?xml version="1.0" encoding="UTF-8"?>\n',
+            '<gpx version="1.1" creator="Priyank Vashiar">\n',
+            '  <rte>\n',
+            `    <name>${city.name} Quest Route ${todayStr}</name>\n`
+        ];
 
-                const gpxParts = [
-                    '<?xml version="1.0" encoding="UTF-8"?>\n',
-                    '<gpx version="1.1" creator="Priyank Vashiar">\n',
-                    '  <rte>\n',
-                    `    <name>${city.name} Quest Route ${todayStr}</name>\n`
-                ];
+        for (let i = 0; i < optimizedRoute.length; i++) {
+            const pt = optimizedRoute[i];
+            gpxParts.push(
+                `    <rtept lat="${pt.lat}" lon="${pt.lng}">\n`,
+                `      <name>${i + 1}. ${pt.name}</name>\n`,
+                `    </rtept>\n`
+            );
+        }
 
-                for (let i = 0; i < optimizedRoute.length; i++) {
-                    const pt = optimizedRoute[i];
-                    gpxParts.push(
-                        `    <rtept lat="${pt.lat}" lon="${pt.lng}">\n`,
-                        `      <name>${i + 1}. ${pt.name}</name>\n`,
-                        `    </rtept>\n`
-                    );
-                }
+        gpxParts.push('  </rte>\n</gpx>');
 
-                gpxParts.push('  </rte>\n</gpx>');
-
-                const blob = new Blob([gpxParts.join('')], { type: 'application/gpx+xml' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `${todayStr}_${city.cityKey}_route.gpx`;
-                link.click();
-            } finally {
-                resetButton();
-                worker.terminate();
-            }
-        };
-
-        worker.onerror = (err) => {
-            alert(`Worker error: ${err.message}`);
-            resetButton();
-            worker.terminate();
-        };
-
+        const blob = new Blob([gpxParts.join('')], { type: 'application/gpx+xml' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${todayStr}_${city.cityKey}_route.gpx`;
+        link.click();
+        URL.revokeObjectURL(link.href);
     } catch (err) {
         alert(`Error generating GPX: ${err.message}`);
+    } finally {
+        if (worker) {
+            try { worker.terminate(); } catch (_) { /* ignore */ }
+        }
         resetButton();
     }
 }
 
-// Global Scope Bindings
+// Global Scope Bindings (required by inline handlers in index.html)
 window.onCityChange = onCityChange;
 window.handleRouteGeneration = handleRouteGeneration;
+window.handleDonate = handleDonate;
 window.generateAndDownloadGPX = handleRouteGeneration;
 window.onload = init;
