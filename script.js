@@ -3,10 +3,8 @@ let questList = {};
 let pokedexMap = {};
 let timerInterval = null;
 
-// Update this URL if the project gains a formal donation channel (Ko-fi, Sponsors, etc.).
 const DONATE_URL = 'https://github.com/PriyankVashiar/PoGoMaps-TaskList';
 
-// WI-06: official artwork is loaded from PokeAPI sprites CDN (not vendored in-repo).
 const POKEMON_ARTWORK_CDN =
     'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork';
 
@@ -31,7 +29,6 @@ const ITEM_DETAILS = {
     "1302": { name: "Rare Candy XL", file: "Rare_Candy_XL.png" }
 };
 
-// Utility Helpers
 const escapeXml = (str) => String(str || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -41,10 +38,6 @@ const escapeXml = (str) => String(str || '')
 
 const pad = (num) => String(num).padStart(2, '0');
 
-/**
- * Resolve a quest reward ID to a PokeAPI official-artwork URL.
- * Form / costume keys like "58-2792" or "79-g" use the leading national dex number.
- */
 function getPokemonArtworkUrl(pokemonId) {
     const raw = String(pokemonId || '').trim();
     const match = raw.match(/^(\d+)/);
@@ -62,7 +55,28 @@ function getSelectedCityConfig() {
     };
 }
 
-// Timer Functions
+/** WI-07: inline status banner (info | ok | error) */
+function setStatus(message, type = 'info', detail = '') {
+    const el = document.getElementById('status-bar');
+    if (!el) return;
+    if (!message) {
+        el.hidden = true;
+        el.textContent = '';
+        el.className = 'status-bar';
+        return;
+    }
+    el.hidden = false;
+    el.className = 'status-bar' + (type === 'error' ? ' status-error' : type === 'ok' ? ' status-ok' : '');
+    el.replaceChildren();
+    el.appendChild(document.createTextNode(message));
+    if (detail) {
+        const d = document.createElement('span');
+        d.className = 'status-detail';
+        d.textContent = detail;
+        el.appendChild(d);
+    }
+}
+
 function updateRefreshCountdown() {
     const titleEl = document.querySelector('.main-title');
     if (!titleEl) return;
@@ -106,18 +120,30 @@ function startRefreshCountdown() {
 
 function onCityChange() {
     updateRefreshCountdown();
+    setStatus('');
 }
 
-/** Opens the configured donation / support URL in a new tab (WI-01). */
 function handleDonate() {
     window.open(DONATE_URL, '_blank', 'noopener,noreferrer');
 }
 
-// Core Initialization
+function bindUiEvents() {
+    const citySelect = document.getElementById('city-select');
+    if (citySelect) citySelect.addEventListener('change', onCityChange);
+
+    const generateBtn = document.getElementById('generateRouteBtn');
+    if (generateBtn) generateBtn.addEventListener('click', () => { handleRouteGeneration(); });
+
+    const donateBtn = document.getElementById('donateBtn');
+    if (donateBtn) donateBtn.addEventListener('click', handleDonate);
+}
+
 async function init() {
+    bindUiEvents();
     startRefreshCountdown();
 
     try {
+        setStatus('Loading quest filters…');
         const cacheBuster = `?v=${Date.now()}`;
         const [questRes, pokedexRes] = await Promise.all([
             fetch(`./JSON/Quest_List.json${cacheBuster}`),
@@ -125,7 +151,7 @@ async function init() {
         ]);
 
         if (!questRes.ok || !pokedexRes.ok) {
-            throw new Error("Failed to load JSON assets.");
+            throw new Error('Failed to load JSON assets.');
         }
 
         const [questData, pokedexData] = await Promise.all([
@@ -137,12 +163,24 @@ async function init() {
         pokedexMap = Object.fromEntries(pokedexData.map(pkmn => [String(pkmn.id), pkmn]));
 
         renderCards();
+        setStatus('Ready — select filters and generate a route.', 'ok');
     } catch (err) {
-        alert(`Error loading configuration files: ${err.message}`);
+        setStatus(`Error loading configuration: ${err.message}`, 'error');
     }
 }
 
-// UI Dropdown Builder
+function closeAllMultiselects(exceptContainer = null) {
+    document.querySelectorAll('.checkboxes-container.show').forEach(el => {
+        if (el !== exceptContainer) {
+            el.classList.remove('show', 'drop-up');
+            const box = el.previousElementSibling;
+            if (box && box.classList.contains('select-box')) {
+                box.setAttribute('aria-expanded', 'false');
+            }
+        }
+    });
+}
+
 function createCheckboxDropdown(l1, l2, l3, conditions) {
     const wrapper = document.createElement('div');
     wrapper.className = 'custom-multiselect';
@@ -150,12 +188,19 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
     const selectBox = document.createElement('div');
     selectBox.className = 'select-box';
     selectBox.textContent = 'Select...';
+    selectBox.setAttribute('role', 'button');
+    selectBox.setAttribute('tabindex', '0');
+    selectBox.setAttribute('aria-haspopup', 'listbox');
+    selectBox.setAttribute('aria-expanded', 'false');
+    selectBox.setAttribute('aria-label', 'Select quest conditions');
 
     const container = document.createElement('div');
     container.className = 'checkboxes-container';
+    container.setAttribute('role', 'listbox');
+    container.setAttribute('aria-multiselectable', 'true');
     container.addEventListener('click', (e) => e.stopPropagation());
 
-    const optionsToRender = (conditions && conditions.length > 0) ? conditions : ["No Conditions"];
+    const optionsToRender = (conditions && conditions.length > 0) ? conditions : ['No Conditions'];
     const checkboxes = [];
 
     const updateBoxText = () => {
@@ -169,13 +214,36 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
         }
     };
 
+    const toggleOpen = () => {
+        const isShowing = container.classList.contains('show');
+        closeAllMultiselects(container);
+        if (!isShowing) {
+            container.classList.add('show');
+            selectBox.setAttribute('aria-expanded', 'true');
+            const cardBody = wrapper.closest('.card-body');
+            if (cardBody) {
+                const cardRect = cardBody.getBoundingClientRect();
+                const boxRect = selectBox.getBoundingClientRect();
+                if ((cardRect.bottom - boxRect.bottom) < 200) {
+                    container.classList.add('drop-up');
+                } else {
+                    container.classList.remove('drop-up');
+                }
+            }
+        } else {
+            container.classList.remove('show', 'drop-up');
+            selectBox.setAttribute('aria-expanded', 'false');
+        }
+    };
+
     optionsToRender.forEach(cond => {
         const label = document.createElement('label');
         label.className = 'checkbox-option';
+        label.setAttribute('role', 'option');
 
         const cb = document.createElement('input');
         cb.type = 'checkbox';
-        cb.value = cond === "No Conditions" ? "" : cond;
+        cb.value = cond === 'No Conditions' ? '' : cond;
         cb.dataset.l1 = l1;
         cb.dataset.l2 = l2;
         cb.dataset.l3 = l3;
@@ -189,26 +257,16 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
 
     selectBox.addEventListener('click', (e) => {
         e.stopPropagation();
-        const isShowing = container.classList.contains('show');
+        toggleOpen();
+    });
 
-        document.querySelectorAll('.checkboxes-container.show').forEach(el => {
-            if (el !== container) el.classList.remove('show', 'drop-up');
-        });
-
-        if (!isShowing) {
-            container.classList.add('show');
-            const cardBody = wrapper.closest('.card-body');
-            if (cardBody) {
-                const cardRect = cardBody.getBoundingClientRect();
-                const boxRect = selectBox.getBoundingClientRect();
-                if ((cardRect.bottom - boxRect.bottom) < 200) {
-                    container.classList.add('drop-up');
-                } else {
-                    container.classList.remove('drop-up');
-                }
-            }
-        } else {
+    selectBox.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleOpen();
+        } else if (e.key === 'Escape') {
             container.classList.remove('show', 'drop-up');
+            selectBox.setAttribute('aria-expanded', 'false');
         }
     });
 
@@ -217,7 +275,6 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
     return wrapper;
 }
 
-// Dynamic Card Rendering
 function renderCards() {
     const categories = ['2', '3', '7', '12'];
 
@@ -281,10 +338,12 @@ function renderCards() {
 
             Object.entries(level2Obj).forEach(([l2Id, level3Obj]) => {
                 const accBtn = document.createElement('button');
+                accBtn.type = 'button';
                 accBtn.className = 'accordion';
+                accBtn.setAttribute('aria-expanded', 'false');
 
                 let displayName = `ID: ${l2Id}`;
-                let iconUrl = "";
+                let iconUrl = '';
 
                 if (cat === '2' && ITEM_DETAILS[l2Id]) {
                     displayName = ITEM_DETAILS[l2Id].name;
@@ -297,7 +356,7 @@ function renderCards() {
                 if (iconUrl) {
                     const iconImg = document.createElement('img');
                     iconImg.src = iconUrl;
-                    iconImg.alt = displayName;
+                    iconImg.alt = '';
                     iconImg.className = 'accordion-icon';
                     iconImg.onerror = () => { iconImg.style.display = 'none'; };
                     headerTitle.appendChild(iconImg);
@@ -308,6 +367,7 @@ function renderCards() {
 
                 const panel = document.createElement('div');
                 panel.className = 'panel';
+                panel.setAttribute('role', 'region');
 
                 let hasContent = false;
                 Object.entries(level3Obj).forEach(([l3Amount, conditions]) => {
@@ -326,7 +386,8 @@ function renderCards() {
 
                 if (hasContent) {
                     accBtn.addEventListener('click', function () {
-                        this.classList.toggle('active');
+                        const open = this.classList.toggle('active');
+                        this.setAttribute('aria-expanded', open ? 'true' : 'false');
                         if (panel.style.maxHeight) {
                             panel.style.maxHeight = null;
                             panel.classList.remove('open-overflow');
@@ -350,12 +411,11 @@ function renderCards() {
     });
 }
 
-// Global Event Listeners
-document.addEventListener('click', () => {
-    document.querySelectorAll('.checkboxes-container.show').forEach(el => el.classList.remove('show', 'drop-up'));
+document.addEventListener('click', () => closeAllMultiselects());
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAllMultiselects();
 });
 
-// Location Parser
 function getCustomStartLocation() {
     const inputEl = document.getElementById('currentLocationInput') || document.getElementById('start-location');
     const rawInput = inputEl?.value?.trim();
@@ -363,7 +423,7 @@ function getCustomStartLocation() {
 
     const parts = rawInput.split(',').map(str => str.trim());
     if (parts.length !== 2) {
-        alert("Please enter coordinates in 'lat, lon' format (e.g., 40.7128, -74.0060).");
+        setStatus("Enter coordinates as 'lat, lon' (e.g. 40.7128, -74.0060).", 'error');
         return false;
     }
 
@@ -371,18 +431,17 @@ function getCustomStartLocation() {
     const lng = parseFloat(parts[1]);
 
     if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-        alert("Please enter valid Latitude (-90 to 90) and Longitude (-180 to 180) values.");
+        setStatus('Invalid coordinates. Latitude −90…90, longitude −180…180.', 'error');
         return false;
     }
 
     return { lat, lng };
 }
 
-// Unified GPX Generation and Route Optimization Handler (WI-02: consistent cleanup)
 async function handleRouteGeneration() {
     const checkedBoxes = document.querySelectorAll('.custom-multiselect input[type="checkbox"]:checked');
     if (checkedBoxes.length === 0) {
-        alert('Please check at least one condition filter checkbox.');
+        setStatus('Check at least one condition filter.', 'error');
         return;
     }
 
@@ -415,6 +474,7 @@ async function handleRouteGeneration() {
 
     try {
         setBusy(`Fetching ${city.name} Quests...`);
+        setStatus(`Fetching ${city.name} quest data…`);
 
         const todayStr = new Date().toISOString().split('T')[0];
         const res = await fetch(`./JSON/${city.cityKey}_quests.json?v=${Date.now()}`);
@@ -448,11 +508,25 @@ async function handleRouteGeneration() {
             }
         }
 
+        const stopCount = isCustom ? matchedCoords.length - 1 : matchedCoords.length;
         const minRequired = isCustom ? 2 : 1;
         if (matchedCoords.length < minRequired) {
-            alert(`No matching Pokéstops found for active filters in ${city.name}.`);
+            setStatus(`No matching Pokéstops in ${city.name} for the selected filters.`, 'error');
             return;
         }
+
+        // WI-08: matched-stops preview before optimization
+        const sampleNames = matchedCoords
+            .filter(p => p.name !== 'Start Location')
+            .slice(0, 5)
+            .map(p => p.name.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'"))
+            .join(' · ');
+        const more = stopCount > 5 ? ` · +${stopCount - 5} more` : '';
+        setStatus(
+            `Matched ${stopCount} Pokéstop${stopCount === 1 ? '' : 's'} in ${city.name} — optimizing route…`,
+            'info',
+            sampleNames ? `Preview: ${sampleNames}${more}` : ''
+        );
 
         setBusy('Optimizing Route...');
 
@@ -478,9 +552,14 @@ async function handleRouteGeneration() {
         });
 
         if (!Array.isArray(optimizedRoute) || optimizedRoute.length === 0) {
-            alert(`No clusters or pokéstops found within ${city.name} geofence for selected filters.`);
+            setStatus(`No clusters within ${city.name} geofence for selected filters.`, 'error');
             return;
         }
+
+        setStatus(
+            `Optimized route: ${optimizedRoute.length} stop${optimizedRoute.length === 1 ? '' : 's'} — downloading GPX…`,
+            'ok'
+        );
 
         const gpxParts = [
             '<?xml version="1.0" encoding="UTF-8"?>\n',
@@ -506,8 +585,13 @@ async function handleRouteGeneration() {
         link.download = `${todayStr}_${city.cityKey}_route.gpx`;
         link.click();
         URL.revokeObjectURL(link.href);
+
+        setStatus(
+            `Downloaded ${todayStr}_${city.cityKey}_route.gpx (${optimizedRoute.length} stops).`,
+            'ok'
+        );
     } catch (err) {
-        alert(`Error generating GPX: ${err.message}`);
+        setStatus(`Error generating GPX: ${err.message}`, 'error');
     } finally {
         if (worker) {
             try { worker.terminate(); } catch (_) { /* ignore */ }
@@ -516,7 +600,6 @@ async function handleRouteGeneration() {
     }
 }
 
-// Global Scope Bindings (required by inline handlers in index.html)
 window.onCityChange = onCityChange;
 window.handleRouteGeneration = handleRouteGeneration;
 window.handleDonate = handleDonate;
