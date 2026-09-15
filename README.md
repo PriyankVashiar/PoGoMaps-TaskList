@@ -11,15 +11,21 @@ An automated web application and background scraper that extracts daily Pokémon
   * **Stardust**: Filter by specific stardust reward tiers.
   * **Encounters**: Filter by target Pokémon encounter rewards.
   * **Task Conditions**: Matches exact quest conditions (e.g., *"Make 3 Great Throws in a row"*).
+  * **Filter Presets**: Save and load custom filter combinations using `localStorage`.
 
-* ⚡ **2-Opt Route Optimization**
-  * **Geofence Validation**: Filters out Pokéstops outside official city bounding polygons.
-  * **Planar Projection**: Translates geographic coordinates to 2D planar vectors for rapid distance math.
-  * **Cluster Filtering**: Isolates dense PokéStop clusters to maximize efficiency.
-  * **2-Opt TSP Solver**: Solves the Traveling Salesperson Problem via nearest-neighbor heuristics and 2-Opt path uncrossing.
+* ⚡ **High-Performance TSP & Cluster Optimization**
+  * **Explicit $O(1)$ Geofence Bounds**: Fast coordinate bounding box filtering eliminates unnecessary point-in-polygon checks.
+  * **Zero-Allocation Axial Hex Binning**: Maps spatial points to axial coordinates using 32-bit integer keys to eliminate string memory allocations and garbage collection pauses.
+  * **Connected Component Clustering**: Retains dense, walkable PokéStop clusters by extracting the largest connected component from active hex grids.
+  * **Pre-Computed Distance Matrix**: Pre-calculates an $N \times N$ `Float64Array` distance matrix for instant $O(1)$ distance lookups during local search passes.
+  * **Index-Based Local Search**: Runs 2-Opt (edge uncrossing) and Or-Opt (1–3 node segment relocations) on raw `Int32Array` index arrays for fast execution.
+  * **Auto-Tuning Density**: Automatically scales hex cell size to hit optimal route point counts (~70 to 250 points).
+
+* 📍 **Custom Starting Point Support**
+  * Anchor route calculations to specific user coordinates (`lat, lng`) for direct start-from-current-position routing.
 
 * 🧵 **Non-Blocking UI**
-  * Heavy distance calculations and route optimizations are offloaded to a background Web Worker (`worker.js`) to keep the interface smooth and responsive.
+  * All distance matrix construction, hex binning, and local search routines are offloaded to a background Web Worker (`worker.js`).
 
 * 🤖 **Automated Scraping**
   * GitHub Actions automatically scrapes regional map data, formats payloads into standardized JSON, and updates the repository prior to local quest resets.
@@ -35,36 +41,29 @@ An automated web application and background scraper that extracts daily Pokémon
 PoGoMaps-TaskList/
 ├── .github/
 │   └── workflows/
-│       └── run_scraper.yml    # Daily automated scraper workflow
+│       └── run_scraper.yml        # Daily automated scraper workflow
 ├── assets/
-│   ├── icons/                 # Small set of item icons (local)
-│   └── pokeapi-official-artwork/  # Not vendored — see CDN note below
+│   ├── icons/                     # Small set of item icons (local)
+│   └── pokeapi-official-artwork/  # Not vendored — loaded via CDN
 ├── JSON/
-│   ├── archive/               # Dated quest snapshots (scraper retention)
+│   ├── archive/                   # Dated quest snapshots (scraper retention)
 │   ├── Quest_List.json
 │   ├── pokedex.json
 │   └── <city>_quests.json
 ├── index.html
 ├── script.js
-├── worker.js
+├── worker.js                      # High-performance matrix & local search solver
 ├── map_scraper.py
 └── requirements.txt
 ```
 
 ### Artwork (CDN)
 
-Pokémon encounter images are **not** shipped in the repository. The UI loads them from the [PokeAPI sprites](https://github.com/PokeAPI/sprites) CDN:
+Pokémon encounter images are loaded directly from the [PokeAPI sprites](https://github.com/PokeAPI/sprites) CDN:
 
 `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{id}.png`
 
-Item icons remain under `assets/icons/`. Missing artwork is hidden via the existing `onerror` handler.
-
-To stop tracking any previously committed PNGs:
-
-```bash
-git rm -r --cached assets/pokeapi-official-artwork
-git commit -m "chore: stop tracking vendored Pokémon artwork"
-```
+Item icons are served locally under `assets/icons/`.
 
 ---
 
@@ -73,21 +72,26 @@ git commit -m "chore: stop tracking vendored Pokémon artwork"
 ```text
 ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
 │  map_scraper.py  │───>│  <city>_quests   │───>│    script.js     │───>│    worker.js     │───> Download
-│ (Pulls Map Data) │    │      (.json)     │    │  (Filters Items) │    │  (2-Opt TSP Path)│     (.gpx)
+│ (Pulls Map Data) │    │      (.json)     │    │  (Filters Items) │    │(Matrix + 2-Opt)  │     (.gpx)
 └──────────────────┘    └──────────────────┘    └──────────────────┘    └──────────────────┘
 ```
 
-1. **Scrape**: `map_scraper.py` queries live map endpoints for active Pokéstops, parses active rewards and conditions, and dumps structured data to `JSON/<city_slug>_quests.json`.
-2. **Select**: Users load the web interface and select desired rewards or task conditions via multi-select dropdowns.
-3. **Optimize**: Upon clicking **Generate Route**, matched coordinates are sent to `worker.js`. The worker eliminates out-of-bounds nodes, removes isolated points, and runs a 2-Opt TSP solver.
-4. **Export**: An XML-formatted `.gpx` file containing the optimized sequence of Pokéstops is generated and downloaded to your browser.
+1. **Scrape**: `map_scraper.py` queries live map endpoints for active Pokéstops, parses active rewards/conditions, and outputs `JSON/<city_slug>_quests.json`.
+2. **Select**: Users load the web UI, choose city locations, apply task/reward filters (or load saved presets), and optionally input custom start coordinates.
+3. **Optimize**: Upon clicking **Generate Route**, matching points pass to `worker.js`, which:
+   * Projects lat/lng to 2D planar vectors (meters).
+   * Bins points into axial hex cells using 32-bit integer keys.
+   * Extracts the largest connected component of active hexes.
+   * Constructs a symmetric $N \times N$ `Float64Array` distance matrix.
+   * Solves TSP using Multi-Start Nearest Neighbor followed by 2-Opt and Or-Opt local search passes.
+4. **Export**: Formats the final sequence into an XML `.gpx` route file and triggers browser download.
 
 ---
 
 ## 💻 Local Development
 
 ### 1. Web Application
-No build step or backend server is required. Serve the root directory with any HTTP static file server:
+Serve the root directory with any HTTP static file server:
 
 ```bash
 # Using Python
@@ -112,7 +116,7 @@ python map_scraper.py syd
 python map_scraper.py all
 ```
 
-Dated copies are written under `JSON/archive/YYYY-MM-DD/` (7-day retention by default).
+Dated copies are stored under `JSON/archive/YYYY-MM-DD/` (7-day retention).
 
 ---
 
@@ -121,12 +125,13 @@ Dated copies are written under `JSON/archive/YYYY-MM-DD/` (7-day retention by de
 Automated daily scraping is powered by `.github/workflows/run_scraper.yml`.
 
 * **Schedules**: Runs automatically at staggered intervals throughout the day to mirror regional quest resets.
-* **Manual Triggers**: Can be executed on demand via the **Actions** tab on GitHub using the `workflow_dispatch` trigger to update quest data for specific cities at any time.
+* **Manual Triggers**: Can be executed on demand via the **Actions** tab on GitHub using `workflow_dispatch`.
 
 ---
 
 ## 🙌 Special Thanks
 
-* **Map Creators**: Creators of `nycpokemap.com`, `sgpokemap.com`, `sydneypogomap.com`, `vanpokemap.com`, and `londonpogomap.com` for providing public map endpoints and data feeds.
-* **[PokeAPI/sprites](https://github.com/PokeAPI/sprites)**: For providing high-quality Pokémon artwork and item icons.
-* **[Purukitto/pokemon-data.json](https://github.com/Purukitto/pokemon-data.json)**: For providing the Pokédex data structure and mappings.
+* **Map Creators**: `nycpokemap.com`, `sgpokemap.com`, `sydneypogomap.com`, `vanpokemap.com`, and `londonpogomap.com` for public map endpoints.
+* **[PokeAPI/sprites](https://github.com/PokeAPI/sprites)**: High-quality Pokémon artwork.
+* **[Purukitto/pokemon-data.json](https://github.com/Purukitto/pokemon-data.json)**: Pokédex data structure and mappings.
+* **[dextel2](https://github.com/dextel2)**: Contribution to this project

@@ -71,7 +71,7 @@ def request_with_retries(
             sleep_for = BASE_BACKOFF_SECONDS * (2 ** (attempt - 1))
             log.warning(
                 "Request failed (attempt %s/%s) %s — retrying in %.1fs: %s",
-                attempt, max_retries, url, sleep_for, exp if False else exc,
+                attempt, max_retries, url, sleep_for, exc,
             )
             time.sleep(sleep_for)
     raise RuntimeError(f"Failed after {max_retries} attempts for {url}: {last_error}") from last_error
@@ -184,28 +184,39 @@ def merge_filter_sets(filter_maps: list) -> dict:
     return merged
 
 
-def update_quest_list_structure(quest_list: dict, merged_filters: dict) -> None:
+def update_quest_list_structure(quest_list: dict, merged_filters: dict, allow_pruning: bool = True) -> None:
+    """Updates master categories structure. 
+    
+    If allow_pruning is False (e.g. partial fetch or single city target), 
+    missing keys are preserved to prevent accidental deletion.
+    """
     categories = quest_list.setdefault("categories", {})
-    for cat in list(categories.keys()):
-        if f"t{cat}" not in CATEGORIES_TO_KEEP:
-            del categories[cat]
+    
+    if allow_pruning:
+        for cat in list(categories.keys()):
+            if f"t{cat}" not in CATEGORIES_TO_KEEP:
+                del categories[cat]
+
     for cat_key in CATEGORIES_TO_KEEP:
         clean_cat = cat_key.replace("t", "")
         if clean_cat not in categories:
             categories[clean_cat] = {}
         valid_items = merged_filters.get(cat_key, set())
+        
         if clean_cat == "3":
             stardust_dict = categories[clean_cat].setdefault("0", {})
-            for old_amount in list(stardust_dict.keys()):
-                if old_amount not in valid_items:
-                    del stardust_dict[old_amount]
+            if allow_pruning:
+                for old_amount in list(stardust_dict.keys()):
+                    if old_amount not in valid_items:
+                        del stardust_dict[old_amount]
             for amount_str in valid_items:
                 if amount_str not in stardust_dict or not isinstance(stardust_dict[amount_str], list):
                     stardust_dict[amount_str] = []
         else:
-            for old_id in list(categories[clean_cat].keys()):
-                if old_id not in valid_items:
-                    del categories[clean_cat][old_id]
+            if allow_pruning:
+                for old_id in list(categories[clean_cat].keys()):
+                    if old_id not in valid_items:
+                        del categories[clean_cat][old_id]
             for reward_str in valid_items:
                 if reward_str not in categories[clean_cat]:
                     categories[clean_cat][reward_str] = {}
@@ -277,11 +288,14 @@ def main() -> int:
     ensure_json_dir()
     quest_list = load_or_init_quest_list()
     target = sys.argv[1].lower() if len(sys.argv) > 1 else "all"
-    city_keys = list(CITIES.keys()) if target == "all" else [target]
+    
     if target != "all" and target not in CITIES:
         log.error("Unknown city key: %s (valid: %s, all)", target, ", ".join(CITIES))
         return 1
+
+    city_keys = list(CITIES.keys()) if target == "all" else [target]
     filter_source_keys = list(CITIES.keys())
+    
     log.info("--- Updating master list structure from multi-city filters ---")
     filter_maps = []
     filter_errors = []
@@ -293,13 +307,21 @@ def main() -> int:
         except Exception as exp:
             filter_errors.append(f"{key}: {exp}")
             log.error("Failed to fetch filters for %s: %s", key, exp)
+
     if not filter_maps:
         log.error("Could not fetch filters from any city. Aborting.")
         for msg in filter_errors:
             log.error("  %s", msg)
         return 1
+
+    # Only safely prune missing items if ALL configured cities responded successfully
+    allow_pruning = (len(filter_maps) == len(CITIES))
+    if not allow_pruning:
+        log.warning("Partial filter fetch detected (%s/%s cities). Pruning missing rewards disabled to prevent data loss.", len(filter_maps), len(CITIES))
+
     merged = merge_filter_sets(filter_maps)
-    update_quest_list_structure(quest_list, merged)
+    update_quest_list_structure(quest_list, merged, allow_pruning=allow_pruning)
+
     scrape_errors = []
     for city_key in city_keys:
         try:
@@ -307,17 +329,21 @@ def main() -> int:
         except Exception as exp:
             scrape_errors.append(f"{city_key}: {exp}")
             log.error("Scrape failed for %s: %s", city_key, exp)
+
     quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
     preserve_previous_live_file(quest_list_path, "Quest_List.json")
     write_json(quest_list_path, quest_list)
     archive_snapshot("Quest_List.json", quest_list)
     log.info("Updated master list: %s", quest_list_path)
+
     prune_old_archives(ARCHIVE_RETENTION_DAYS)
+
     if scrape_errors:
         log.error("Pipeline finished with %s city failure(s):", len(scrape_errors))
         for msg in scrape_errors:
             log.error("  %s", msg)
         return 1
+
     log.info("Pipeline finished successfully")
     return 0
 

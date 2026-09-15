@@ -3,7 +3,7 @@ let questList = {};
 let pokedexMap = {};
 let timerInterval = null;
 
-const DONATE_URL = 'https://github.com/PriyankVashiar/PoGoMaps-TaskList';
+const DONATE_URL = 'https://buymeacoffee.com/priyankvashiar';
 
 const POKEMON_ARTWORK_CDN =
     'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork';
@@ -126,7 +126,6 @@ function handleDonate() {
     window.open(DONATE_URL, '_blank', 'noopener,noreferrer');
 }
 
-// --- WI-09: Filter presets (localStorage) ---
 const PRESET_STORAGE_KEY = 'pogo_filter_presets_v1';
 
 function filterKeyFromCheckbox(cb) {
@@ -252,58 +251,6 @@ function handlePresetDelete() {
 function handlePresetClear() {
     clearAllFilters();
     setStatus('All filters cleared.', 'info');
-}
-
-function bindUiEvents() {
-    const citySelect = document.getElementById('city-select');
-    if (citySelect) citySelect.addEventListener('change', onCityChange);
-
-    const generateBtn = document.getElementById('generateRouteBtn');
-    if (generateBtn) generateBtn.addEventListener('click', () => { handleRouteGeneration(); });
-
-    const donateBtn = document.getElementById('donateBtn');
-    if (donateBtn) donateBtn.addEventListener('click', handleDonate);
-
-    const loadBtn = document.getElementById('preset-load-btn');
-    if (loadBtn) loadBtn.addEventListener('click', handlePresetLoad);
-    const saveBtn = document.getElementById('preset-save-btn');
-    if (saveBtn) saveBtn.addEventListener('click', handlePresetSave);
-    const delBtn = document.getElementById('preset-delete-btn');
-    if (delBtn) delBtn.addEventListener('click', handlePresetDelete);
-    const clearBtn = document.getElementById('preset-clear-btn');
-    if (clearBtn) clearBtn.addEventListener('click', handlePresetClear);
-}
-
-async function init() {
-    bindUiEvents();
-    startRefreshCountdown();
-
-    try {
-        setStatus('Loading quest filters…');
-        const cacheBuster = `?v=${Date.now()}`;
-        const [questRes, pokedexRes] = await Promise.all([
-            fetch(`./JSON/Quest_List.json${cacheBuster}`),
-            fetch(`./JSON/pokedex.json${cacheBuster}`)
-        ]);
-
-        if (!questRes.ok || !pokedexRes.ok) {
-            throw new Error('Failed to load JSON assets.');
-        }
-
-        const [questData, pokedexData] = await Promise.all([
-            questRes.json(),
-            pokedexRes.json()
-        ]);
-
-        questList = questData.categories || {};
-        pokedexMap = Object.fromEntries(pokedexData.map(pkmn => [String(pkmn.id), pkmn]));
-
-        renderCards();
-        refreshPresetSelect();
-        setStatus('Ready — select filters and generate a route.', 'ok');
-    } catch (err) {
-        setStatus(`Error loading configuration: ${err.message}`, 'error');
-    }
 }
 
 function closeAllMultiselects(exceptContainer = null) {
@@ -548,13 +495,8 @@ function renderCards() {
     });
 }
 
-document.addEventListener('click', () => closeAllMultiselects());
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeAllMultiselects();
-});
-
 function getCustomStartLocation() {
-    const inputEl = document.getElementById('currentLocationInput') || document.getElementById('start-location');
+    const inputEl = document.getElementById('currentLocationInput');
     const rawInput = inputEl?.value?.trim();
     if (!rawInput) return null;
 
@@ -591,7 +533,7 @@ async function handleRouteGeneration() {
     );
 
     const city = getSelectedCityConfig();
-    const btnTarget = document.getElementById('generateRouteBtn') || document.querySelector('.btn-primary');
+    const btnTarget = document.getElementById('generateRouteBtn');
 
     const setBusy = (label) => {
         if (btnTarget) {
@@ -736,8 +678,57 @@ async function handleRouteGeneration() {
     }
 }
 
-window.onCityChange = onCityChange;
-window.handleRouteGeneration = handleRouteGeneration;
-window.handleDonate = handleDonate;
-window.generateAndDownloadGPX = handleRouteGeneration;
-window.onload = init;
+function bindUiEvents() {
+    document.getElementById('city-select')?.addEventListener('change', onCityChange);
+    document.getElementById('generateRouteBtn')?.addEventListener('click', handleRouteGeneration);
+    document.getElementById('donateBtn')?.addEventListener('click', handleDonate);
+
+    document.getElementById('preset-load-btn')?.addEventListener('click', handlePresetLoad);
+    document.getElementById('preset-save-btn')?.addEventListener('click', handlePresetSave);
+    document.getElementById('preset-delete-btn')?.addEventListener('click', handlePresetDelete);
+    document.getElementById('preset-clear-btn')?.addEventListener('click', handlePresetClear);
+
+    document.addEventListener('click', () => closeAllMultiselects());
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAllMultiselects();
+    });
+}
+
+async function init() {
+    bindUiEvents();
+    startRefreshCountdown();
+
+    try {
+        setStatus('Loading quest filters…');
+        const cacheBuster = `?v=${Date.now()}`;
+        const [questRes, pokedexRes] = await Promise.all([
+            fetch(`./JSON/Quest_List.json${cacheBuster}`),
+            fetch(`./JSON/pokedex.json${cacheBuster}`)
+        ]);
+
+        if (!questRes.ok || !pokedexRes.ok) {
+            throw new Error('Failed to load JSON assets.');
+        }
+
+        const [questData, pokedexData] = await Promise.all([
+            questRes.json(),
+            pokedexRes.json()
+        ]);
+
+        questList = questData.categories || {};
+        pokedexMap = Object.fromEntries(pokedexData.map(pkmn => [String(pkmn.id), pkmn]));
+
+        renderCards();
+        refreshPresetSelect();
+        setStatus('Ready — select filters and generate a route.', 'ok');
+    } catch (err) {
+        setStatus(`Error loading configuration: ${err.message}`, 'error');
+    }
+}
+
+// Modern DOM Ready execution
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}

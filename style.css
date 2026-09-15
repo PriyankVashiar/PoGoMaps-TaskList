@@ -1,4 +1,5 @@
 :root {
+    color-scheme: dark;
     --bg-color: #000000;
     --card-bg: #0b0c10;
     --dropdown-bg: #12141d;
@@ -40,7 +41,6 @@ body {
 }
 
 .main-title {
-    color: var(--text-color);
     font-size: 1.5rem;
     font-weight: 800;
     margin: 0;
@@ -74,7 +74,7 @@ body {
 }
 
 .city-dropdown:hover,
-.city-dropdown:focus {
+.city-dropdown:focus-visible {
     border-color: var(--accent-color);
     box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
 }
@@ -116,7 +116,7 @@ body {
     font-weight: 400;
 }
 
-.control-input:focus {
+.control-input:focus-visible {
     border-color: var(--accent-color);
     box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
 }
@@ -128,7 +128,7 @@ body {
     border: none;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, color 0.2s ease-in-out;
 }
 
 .btn-primary:hover {
@@ -152,7 +152,7 @@ body {
     color: #fbbf24;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.2s ease-in-out;
+    transition: border-color 0.2s ease-in-out, background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
 }
 
 .btn-secondary:hover {
@@ -167,7 +167,6 @@ body {
     border-radius: 8px;
     border: 1px solid var(--border-color);
     background: var(--status-info-bg);
-    color: var(--text-color);
     font-size: 14px;
     font-weight: 500;
     line-height: 1.4;
@@ -265,15 +264,13 @@ body {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9);
     display: flex;
     flex-direction: column;
-    position: relative;
-    height: calc(100vh - 160px);
+    height: calc(100vh - 200px);
     box-sizing: border-box;
 }
 
 .card-header {
     font-size: 1.15rem;
     font-weight: 700;
-    color: var(--text-color);
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 10px;
     margin-bottom: 10px;
@@ -294,8 +291,6 @@ body {
     overflow-y: auto;
     overflow-x: visible;
     padding-right: 4px;
-    position: static;
-    color: var(--text-color);
 }
 
 .card-body::-webkit-scrollbar {
@@ -332,7 +327,6 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    color: var(--text-color);
 }
 
 .accordion-icon {
@@ -345,14 +339,12 @@ body {
 .accordion.active {
     background-color: rgba(56, 189, 248, 0.12);
     border-color: var(--accent-color);
-    color: var(--text-color);
 }
 
 .accordion:after {
     content: '\002B';
     font-weight: bold;
     font-size: 18px;
-    color: var(--text-color);
 }
 
 .accordion.active:after {
@@ -362,7 +354,6 @@ body {
 .panel {
     padding: 0 12px;
     background-color: #050608;
-    color: var(--text-color);
     border: 1px solid var(--border-color);
     border-top: none;
     max-height: 0;
@@ -383,7 +374,6 @@ body {
     border-bottom: 1px solid var(--border-color);
     gap: 10px;
     position: relative;
-    color: var(--text-color);
 }
 
 .row-item:last-child {
@@ -406,7 +396,6 @@ body {
 .row-label {
     font-size: 14px;
     font-weight: 500;
-    color: var(--text-color);
 }
 
 .custom-multiselect {
@@ -439,10 +428,9 @@ body {
     content: '▼';
     font-size: 9px;
     margin-left: 8px;
-    color: var(--text-color);
 }
 
-.select-box:focus {
+.select-box:focus-visible {
     outline: 2px solid var(--accent-color);
     outline-offset: 1px;
 }
@@ -454,7 +442,6 @@ body {
     left: 0;
     right: 0;
     background-color: var(--dropdown-bg);
-    color: var(--text-color);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.95);
@@ -482,7 +469,6 @@ body {
     padding: 8px 14px;
     cursor: pointer;
     font-size: 13px;
-    color: var(--text-color);
     transition: background-color 0.15s;
 }
 
