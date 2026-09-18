@@ -1,4 +1,4 @@
-# 🗺️ [Pokémon GO Quest Route Generator](https://priyankvashiar.github.io/PoGoMaps-TaskList/)
+# 🗺️ [Pokémon GO Quest Route Generator](https://priyankvashiar.github.io/PoGoRoutes/)
 
 An automated web application and background scraper that extracts daily Pokémon GO Field Research quests across major cities, filters them by custom criteria, and calculates optimized `.gpx` routes for GPS joystick navigation.
 
