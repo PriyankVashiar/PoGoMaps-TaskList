@@ -50,7 +50,6 @@ function getSelectedCityConfig() {
     const select = document.getElementById('city-select');
     const url = select ? select.value : "https://nycpokemap.com";
     return {
-        baseUrl: url,
         ...(CITY_CONFIGS[url] || CITY_CONFIGS["https://nycpokemap.com"])
     };
 }
@@ -112,7 +111,6 @@ function updateRefreshCountdown() {
 }
 
 function startRefreshCountdown() {
-    if (timerInterval) clearInterval(timerInterval);
     updateRefreshCountdown();
     timerInterval = setInterval(updateRefreshCountdown, 10000);
 }
@@ -348,9 +346,6 @@ function createCheckboxDropdown(l1, l2, l3, conditions) {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             toggleOpen();
-        } else if (e.key === 'Escape') {
-            container.classList.remove('show', 'drop-up');
-            selectBox.setAttribute('aria-expanded', 'false');
         }
     });
 
@@ -528,9 +523,7 @@ async function handleRouteGeneration() {
     if (customStartPoint === false) return;
 
     const isCustom = !!customStartPoint;
-    const activeFilters = new Set(
-        Array.from(checkedBoxes).map(cb => `${cb.dataset.l1},${cb.dataset.l2},${cb.dataset.l3},${cb.value}`)
-    );
+    const activeFilters = new Set(getCheckedFilterKeys());
 
     const city = getSelectedCityConfig();
     const btnTarget = document.getElementById('generateRouteBtn');
@@ -582,14 +575,13 @@ async function handleRouteGeneration() {
                 matchedCoords.push({
                     lat: parseFloat(q.lat),
                     lng: parseFloat(q.lng),
-                    name: escapeXml(q.name || 'Pokestop')
+                    name: q.name || 'Pokestop'
                 });
             }
         }
 
         const stopCount = isCustom ? matchedCoords.length - 1 : matchedCoords.length;
-        const minRequired = isCustom ? 2 : 1;
-        if (matchedCoords.length < minRequired) {
+        if (matchedCoords.length < 1) {
             setStatus(`No matching Pokéstops in ${city.name} for the selected filters.`, 'error');
             return;
         }
@@ -597,7 +589,7 @@ async function handleRouteGeneration() {
         const sampleNames = matchedCoords
             .filter(p => p.name !== 'Start Location')
             .slice(0, 5)
-            .map(p => p.name.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'"))
+            .map(p => p.name)
             .join(' · ');
         const more = stopCount > 5 ? ` · +${stopCount - 5} more` : '';
         setStatus(
@@ -650,7 +642,7 @@ async function handleRouteGeneration() {
             const pt = optimizedRoute[i];
             gpxParts.push(
                 `    <rtept lat="${pt.lat}" lon="${pt.lng}">\n`,
-                `      <name>${i + 1}. ${pt.name}</name>\n`,
+                `      <name>${i + 1}. ${escapeXml(pt.name)}</name>\n`,
                 `    </rtept>\n`
             );
         }

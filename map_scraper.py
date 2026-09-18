@@ -103,19 +103,6 @@ def archive_snapshot(filename: str, data: Any, date_str: str | None = None) -> s
     return dest
 
 
-def preserve_previous_live_file(live_path: str, filename: str) -> None:
-    if not os.path.isfile(live_path):
-        return
-    archived_today = os.path.join(archive_day_dir(), filename)
-    if os.path.isfile(archived_today):
-        return
-    try:
-        shutil.copy2(live_path, archived_today)
-        log.info("Preserved previous live file into archive: %s", archived_today)
-    except OSError as exc:
-        log.warning("Could not preserve previous live file %s: %s", live_path, exc)
-
-
 def prune_old_archives(retention_days: int = ARCHIVE_RETENTION_DAYS) -> None:
     if not os.path.isdir(ARCHIVE_DIR):
         return
@@ -159,16 +146,21 @@ def load_or_init_quest_list() -> dict:
     return {"categories": {}}
 
 
+def _city_request_params(city_key: str) -> tuple[str, dict]:
+    """Return (base_url, headers) for a city's quest endpoint."""
+    url = CITIES[city_key]["url"]
+    return f"{url}/quests.php", {"Referer": f"{url}/"}
+
+
 def fetch_city_filters(city_key: str) -> dict:
     city_config = CITIES[city_key]
-    base_url = f"{city_config['url']}/quests.php"
-    headers = {"Referer": f"{city_config['url']}/"}
+    base_url, headers = _city_request_params(city_key)
     params = {"time": int(datetime.now(timezone.utc).timestamp() * 1000)}
     response = request_with_retries(base_url, params=params, headers=headers)
     payload = response.json()
     if not isinstance(payload, dict):
         raise ValueError(f"Unexpected filters response type from {city_key}")
-    return payload.get("filters", {}) or {}
+    return payload.get("filters") or {}
 
 
 def merge_filter_sets(filter_maps: list) -> dict:
@@ -223,8 +215,7 @@ def update_quest_list_structure(quest_list: dict, merged_filters: dict, allow_pr
 
 
 def fetch_current_quests(city_key: str, city_config: dict, quest_list: dict) -> dict:
-    base_url = f"{city_config['url']}/quests.php"
-    headers = {"Referer": f"{city_config['url']}/"}
+    base_url, headers = _city_request_params(city_key)
     quest_params = []
     categories = quest_list.get("categories", {})
     for category, items in categories.items():
@@ -244,7 +235,6 @@ def fetch_current_quests(city_key: str, city_config: dict, quest_list: dict) -> 
         raise ValueError(f"Missing 'quests' key in payload for {city_key}")
     out_filename = f"{city_key}_quests.json"
     out_path = os.path.join(JSON_DIR, out_filename)
-    preserve_previous_live_file(out_path, out_filename)
     write_json(out_path, current_quests_data)
     archive_snapshot(out_filename, current_quests_data)
     log.info("Saved %s (%s quests)", out_path, len(current_quests_data.get("quests") or []))
@@ -263,7 +253,7 @@ def populate_quest_list(quest_list: dict, current_quests_data: dict) -> None:
             continue
         if cat == "3":
             stardust_dict = categories["3"].setdefault("0", {})
-            if amount not in stardust_dict or isinstance(stardust_dict[amount], dict):
+            if amount not in stardust_dict:
                 stardust_dict[amount] = []
             if condition not in stardust_dict[amount]:
                 stardust_dict[amount].append(condition)
@@ -293,8 +283,9 @@ def main() -> int:
         log.error("Unknown city key: %s (valid: %s, all)", target, ", ".join(CITIES))
         return 1
 
-    city_keys = list(CITIES.keys()) if target == "all" else [target]
-    filter_source_keys = list(CITIES.keys())
+    all_keys = list(CITIES.keys())
+    city_keys = all_keys if target == "all" else [target]
+    filter_source_keys = all_keys
     
     log.info("--- Updating master list structure from multi-city filters ---")
     filter_maps = []
@@ -331,12 +322,11 @@ def main() -> int:
             log.error("Scrape failed for %s: %s", city_key, exp)
 
     quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
-    preserve_previous_live_file(quest_list_path, "Quest_List.json")
     write_json(quest_list_path, quest_list)
     archive_snapshot("Quest_List.json", quest_list)
     log.info("Updated master list: %s", quest_list_path)
 
-    prune_old_archives(ARCHIVE_RETENTION_DAYS)
+    prune_old_archives()
 
     if scrape_errors:
         log.error("Pipeline finished with %s city failure(s):", len(scrape_errors))
