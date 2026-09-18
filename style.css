@@ -452,6 +452,15 @@ body {
     margin-top: 4px;
 }
 
+.checkboxes-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.checkboxes-container::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 4px;
+}
+
 .checkboxes-container.show {
     display: block;
 }
@@ -500,6 +509,10 @@ body {
 
     .card {
         height: auto;
-        max-height: 80vh;
+        max-height: none;
+    }
+
+    .card-body {
+        overflow: visible;
     }
 }
