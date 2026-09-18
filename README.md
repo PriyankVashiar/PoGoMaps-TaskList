@@ -163,6 +163,6 @@ Automated daily scraping is powered by `.github/workflows/run_scraper.yml`.
 
 ## 🙌 Special Thanks
 
-* **Map Creators**: `[nycpokemap.com](https://nycpokemap.com)`, `[sgpokemap.com](https://sgpokemap.com)`, `[sydneypogomap.com](sydneypogomap.com)`, `[vanpokemap.com](vanpokemap.com)`, and `[londonpogomap.com](londonpogomap.com)` for public map endpoints.
+* **Map Creators**: [nycpokemap.com](https://nycpokemap.com), [sgpokemap.com](https://sgpokemap.com), [sydneypogomap.com](https://sydneypogomap.com), [vanpokemap.com](https://vanpokemap.com), and [londonpogomap.com](https://londonpogomap.com) for public map endpoints.
 * **[pokemon-go-api/pokemon-go-api](https://github.com/pokemon-go-api/pokemon-go-api)**: Pokémon GO specific Pokédex data structure, forms, and in-game sprites.
 * **[dextel2](https://github.com/dextel2)**: Contribution to this project
