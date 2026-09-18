@@ -1089,6 +1089,7 @@
     }
   },
   "city_status": {
-    "https://sydneypogomap.com": true
+    "https://sydneypogomap.com": true,
+    "https://sgpokemap.com": false
   }
 }
