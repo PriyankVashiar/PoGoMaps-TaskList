@@ -280,7 +280,14 @@ def scrape_city(city_key: str, quest_list: dict) -> bool:
 def main() -> int:
     ensure_json_dir()
     quest_list = load_or_init_quest_list()
-    target = sys.argv[1].lower() if len(sys.argv) > 1 else "all"
+    
+    args = sys.argv[1:]
+    is_archive_mode = False
+    if len(args) > 0 and args[0].lower() == "archive":
+        is_archive_mode = True
+        args = args[1:]
+        
+    target = args[0].lower() if len(args) > 0 else "all"
     
     if target != "all" and target not in CITIES:
         log.error("Unknown city key: %s (valid: %s, all)", target, ", ".join(CITIES))
@@ -288,6 +295,32 @@ def main() -> int:
 
     all_keys = list(CITIES.keys())
     city_keys = all_keys if target == "all" else [target]
+    
+    if is_archive_mode:
+        city_status = quest_list.get("city_status", {})
+        for city_key in city_keys:
+            out_filename = f"{city_key}_quests.json"
+            out_path = os.path.join(JSON_DIR, out_filename)
+            try:
+                if os.path.exists(out_path):
+                    with open(out_path, "r", encoding="utf-8") as f:
+                        current_data = json.load(f)
+                    archive_snapshot(out_filename, current_data)
+                    log.info("Archived %s", out_filename)
+            except Exception as e:
+                log.error("Failed to archive %s: %s", out_filename, e)
+            
+            empty_data = {"quests": [], "meta": {"time": int(datetime.now(timezone.utc).timestamp())}}
+            write_json(out_path, empty_data)
+            city_status[CITIES[city_key]["url"]] = False
+            log.info("Cleared %s", out_filename)
+            
+        quest_list["city_status"] = city_status
+        quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
+        write_json(quest_list_path, quest_list)
+        log.info("Archive mode finished.")
+        return 0
+
     filter_source_keys = all_keys
     
     log.info("--- Updating master list structure from multi-city filters ---")
