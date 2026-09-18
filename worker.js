@@ -998,64 +998,75 @@ self.onmessage = function (e) {
     const timeLimitMs = e.data.timeLimitMs || 8000;
     const isCustom = e.data.isCustom || false;
 
-    // --- Geofence ---
+    // --- Geofence & Setup ---
     let baseGrid;
-    if (!isCustom) {
-        try {
-            baseGrid = getHexGrid(cityKey);
-        } catch (err) {
-            self.postMessage({ error: err.message });
-            return;
-        }
+    try {
+        baseGrid = getHexGrid(cityKey);
+    } catch (err) {
+        self.postMessage({ error: err.message });
+        return;
     }
 
-    const rawPoints = (!isCustom && baseGrid)
-        ? filterPoints(rawPointsIn, baseGrid)
-        : rawPointsIn;
+    let startPoint = null;
+    let questPoints = rawPointsIn;
 
-    if (rawPoints.length === 0) {
-        self.postMessage([]);
+    if (isCustom) {
+        startPoint = rawPointsIn[0];
+        questPoints = rawPointsIn.slice(1);
+    }
+
+    // Filter quest points by bounding box
+    questPoints = filterPoints(questPoints, baseGrid);
+
+    if (questPoints.length === 0) {
+        self.postMessage(isCustom ? [startPoint] : []);
         return;
     }
 
     // --- Clustering ---
-    let targetPoints = [];
+    let clusteredPoints = [];
     let candidateStartIndices = [];
 
-    if (isCustom || rawPoints.length <= 70) {
-        // Too few to cluster, or custom start — use everything
-        targetPoints = rawPoints;
+    if (questPoints.length <= 70) {
+        // Too few to cluster — use everything
+        clusteredPoints = questPoints;
         candidateStartIndices = [0];
     } else {
         // Strategy 1: Hex-based clustering (binary-search tuned)
-        const hexResult = hexClusterBinarySearch(rawPoints, baseGrid);
+        const hexResult = hexClusterBinarySearch(questPoints, baseGrid);
         const hexCount = hexResult.points.length;
         const hexInRange = hexCount >= 70 && hexCount <= 250;
 
-        // Strategy 2: DBSCAN — only run if hex clustering didn't produce
-        // an in-range result, saving O(n²) computation in the common case
+        // Strategy 2: DBSCAN — only run if hex clustering didn't produce an in-range result
         if (hexInRange) {
-            targetPoints = hexResult.points;
+            clusteredPoints = hexResult.points;
             candidateStartIndices = hexResult.startIndices;
         } else {
-            const dbscanResult = runDBSCANClustering(rawPoints, baseGrid.hexSizeMeters);
+            const dbscanResult = runDBSCANClustering(questPoints, baseGrid.hexSizeMeters);
             const dbCount = dbscanResult.points.length;
             const dbInRange = dbCount >= 70 && dbCount <= 250;
 
             if (dbInRange && dbCount > hexCount) {
-                targetPoints = dbscanResult.points;
+                clusteredPoints = dbscanResult.points;
                 candidateStartIndices = dbscanResult.startIndices;
             } else if (hexCount > 0) {
-                targetPoints = hexResult.points;
+                clusteredPoints = hexResult.points;
                 candidateStartIndices = hexResult.startIndices;
             } else if (dbCount > 0) {
-                targetPoints = dbscanResult.points;
+                clusteredPoints = dbscanResult.points;
                 candidateStartIndices = dbscanResult.startIndices;
             } else {
-                targetPoints = rawPoints;
+                clusteredPoints = questPoints;
                 candidateStartIndices = [0];
             }
         }
+    }
+
+    // Combine custom start point back if applicable
+    let targetPoints = clusteredPoints;
+    if (isCustom) {
+        targetPoints = [startPoint, ...clusteredPoints];
+        candidateStartIndices = [0]; // Force TSP to start at index 0
     }
 
     // --- Pre-TSP: Spatial outlier pruning ---

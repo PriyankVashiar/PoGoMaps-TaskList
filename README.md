@@ -107,16 +107,17 @@ The main frontend controller. It:
 
 ### `worker.js` (The Routing Engine)
 This Web Worker contains the heavy algorithmic logic, running on a separate thread to prevent UI freezing. Its pipeline is:
-1. **Filtering**: Discards points outside hardcoded city bounding boxes.
-2. **Clustering**: Groups points into density clusters. It first tries **Hex Binning** (mapping points to a flat axial coordinate grid and extracting the largest connected component). It uses binary search to find a hex size that yields a target number of stops (70–250). If hex binning fails to find a good range, it falls back to **DBSCAN**.
-3. **Spatial Pruning (`pruneOutliers`)**: Removes points that survived clustering but are far from the main group (using K-Nearest Neighbors IQR and centroid distance).
-4. **Distance Matrix**: Calculates an $O(N^2)$ Euclidean distance matrix and builds K-nearest neighbor lists.
-5. **TSP Construction**: Creates initial routes using both **Multi-Start Nearest Neighbor** (starting from multiple different points) and a **Greedy Tour** (always picking the globally shortest valid edge).
-6. **Iterated Local Search (ILS)**: Takes the best initial routes and aggressively optimizes them until a time limit (e.g., 2000ms) is reached:
+1. **Custom Start Handling**: If a custom start coordinate is provided, it is detached from the dataset to protect it from being dropped.
+2. **Filtering**: Discards quest points outside hardcoded city bounding boxes to remove distant noise.
+3. **Clustering**: Groups quest points into density clusters. It first tries **Hex Binning** (mapping points to a flat axial coordinate grid and extracting the largest connected component). It uses binary search to find a hex size that yields a target number of stops (70–250). If hex binning fails to find a good range, it falls back to **DBSCAN**.
+4. **Spatial Pruning (`pruneOutliers`)**: Re-attaches the custom start point (locked at index 0) and removes clustered points that are far from the main group (using K-Nearest Neighbors IQR and centroid distance), strictly preserving the start point.
+5. **Distance Matrix**: Calculates an $O(N^2)$ Euclidean distance matrix and builds K-nearest neighbor lists.
+6. **TSP Construction**: Creates initial routes using both **Multi-Start Nearest Neighbor** (starting from multiple different points, or forced to start at the custom location) and a **Greedy Tour** (always picking the globally shortest valid edge).
+7. **Iterated Local Search (ILS)**: Takes the best initial routes and aggressively optimizes them until a time limit (e.g., 2000ms) is reached. If a custom start is provided, it remains strictly locked at the origin index across all operations:
    - **2-Opt**: Uncrosses intersecting edges. It uses the pre-computed neighbor lists ($O(nK)$ instead of $O(n^2)$) for massive speedups.
    - **Or-Opt**: Relocates continuous segments (1 to 5 nodes long) to better positions in the route.
    - **Double-Bridge Perturbation**: To escape local minima, it forcefully breaks 4 edges and reconnects the route in a non-sequential order, then feeds it back into 2-Opt/Or-Opt.
-7. **Detour Pruning (`pruneRouteDetours`)**: A final pass over the optimized route to drop any individual stops that add excessive distance compared to the route's average edge length.
+8. **Detour Pruning (`pruneRouteDetours`)**: A final pass over the optimized route to drop any individual stops that add excessive distance compared to the route's average edge length. The custom start point is protected from this pruning pass.
 
 ---
 
