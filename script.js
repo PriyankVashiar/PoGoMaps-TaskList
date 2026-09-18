@@ -1,5 +1,6 @@
 // Application State
 let questList = {};
+let questListCityStatus = {};
 let pokedexMap = {};
 let timerInterval = null;
 
@@ -9,11 +10,11 @@ const POKEMON_ARTWORK_CDN =
     'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork';
 
 const CITY_CONFIGS = {
-    "https://nycpokemap.com": { cityKey: "nyc", name: "New York", refreshUtcHour: 4, refreshUtcMinute: 18 },
-    "https://vanpokemap.com": { cityKey: "vc", name: "Vancouver", refreshUtcHour: 7, refreshUtcMinute: 18 },
-    "https://sgpokemap.com": { cityKey: "sg", name: "Singapore", refreshUtcHour: 16, refreshUtcMinute: 18 },
-    "https://sydneypogomap.com": { cityKey: "syd", name: "Sydney", refreshUtcHour: 14, refreshUtcMinute: 18 },
-    "https://londonpogomap.com": { cityKey: "uk", name: "London", refreshUtcHour: 0, refreshUtcMinute: 18 }
+    "https://nycpokemap.com": { cityKey: "nyc", name: "New York", tz: "America/New_York", resetHour: 1, resetMinute: 0 },
+    "https://vanpokemap.com": { cityKey: "vc", name: "Vancouver", tz: "America/Vancouver", resetHour: 1, resetMinute: 0 },
+    "https://sgpokemap.com": { cityKey: "sg", name: "Singapore", tz: "Asia/Singapore", resetHour: 3, resetMinute: 30 },
+    "https://sydneypogomap.com": { cityKey: "syd", name: "Sydney", tz: "Australia/Sydney", resetHour: 3, resetMinute: 30 },
+    "https://londonpogomap.com": { cityKey: "uk", name: "London", tz: "Europe/London", resetHour: 1, resetMinute: 0 }
 };
 
 const ITEM_DETAILS = {
@@ -38,12 +39,15 @@ const escapeXml = (str) => String(str || '')
 
 const pad = (num) => String(num).padStart(2, '0');
 
-function getPokemonArtworkUrl(pokemonId) {
+const POKEMON_GO_ASSETS_CDN =
+    'https://raw.githubusercontent.com/pokemon-go-api/assets/main/Pokemon';
+
+function getPokemonGoSpriteUrl(pokemonId) {
     const raw = String(pokemonId || '').trim();
     const match = raw.match(/^(\d+)/);
     const id = match ? match[1] : raw;
     if (!id) return '';
-    return `${POKEMON_ARTWORK_CDN}/${id}.png`;
+    return `${POKEMON_GO_ASSETS_CDN}/pm${id}.icon.png`;
 }
 
 function getSelectedCityConfig() {
@@ -75,30 +79,74 @@ function setStatus(message, type = 'info', detail = '') {
     }
 }
 
+function getCityTimeInfo(tz, resetHour, resetMinute) {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        hour: 'numeric', minute: 'numeric', second: 'numeric',
+        hour12: false
+    }).formatToParts(now);
+
+    const p = {};
+    for (const part of parts) {
+        if (part.type !== 'literal') {
+            p[part.type] = parseInt(part.value, 10);
+        }
+    }
+    if (p.hour === 24) p.hour = 0;
+
+    const localNowMillis = p.hour * 3600000 + p.minute * 60000 + p.second * 1000;
+    const resetMillis = resetHour * 3600000 + resetMinute * 60000;
+
+    const isResetting = localNowMillis >= 0 && localNowMillis < resetMillis;
+    const msUntilMidnight = 86400000 - localNowMillis;
+
+    return { isResetting, msUntilMidnight };
+}
+
+function updateCityDropdownAvailability() {
+    const select = document.getElementById('city-select');
+    if (!select) return;
+
+    let firstAvailable = null;
+    let isCurrentAvailable = false;
+
+    for (const option of select.options) {
+        const config = CITY_CONFIGS[option.value];
+        if (!config) continue;
+
+        const isScraperEmpty = questListCityStatus[option.value] === false;
+        const info = getCityTimeInfo(config.tz, config.resetHour, config.resetMinute);
+
+        const isDisabled = info.isResetting || isScraperEmpty;
+
+        if (isDisabled) {
+            option.disabled = true;
+            let baseText = option.text.replace(' (Updating...)', '').replace(' (No Quests)', '');
+            option.text = baseText + (info.isResetting ? ' (Updating...)' : ' (No Quests)');
+        } else {
+            option.disabled = false;
+            option.text = option.text.replace(' (Updating...)', '').replace(' (No Quests)', '');
+            
+            if (!firstAvailable) firstAvailable = option.value;
+            if (option.value === select.value) isCurrentAvailable = true;
+        }
+    }
+
+    if (!isCurrentAvailable && firstAvailable) {
+        select.value = firstAvailable;
+        onCityChange();
+    }
+}
+
 function updateRefreshCountdown() {
+    updateCityDropdownAvailability();
+
     const titleEl = document.querySelector('.main-title');
     if (!titleEl) return;
 
     const city = getSelectedCityConfig();
-    const now = new Date();
-
-    const target = new Date(Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-        city.refreshUtcHour ?? 0,
-        city.refreshUtcMinute ?? 0,
-        0
-    ));
-
-    if (now >= target) {
-        target.setUTCDate(target.getUTCDate() + 1);
-    }
-
-    const diffMs = target - now;
-    const totalMinutes = Math.floor(diffMs / (1000 * 60));
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
+    const info = getCityTimeInfo(city.tz, city.resetHour, city.resetMinute);
 
     let timerSpan = document.getElementById('refresh-timer');
     if (!timerSpan) {
@@ -107,7 +155,14 @@ function updateRefreshCountdown() {
         titleEl.appendChild(timerSpan);
     }
 
-    timerSpan.textContent = ` (Refreshes in ${pad(hours)}:${pad(minutes)} hours)`;
+    if (info.isResetting) {
+        timerSpan.textContent = ` (Waiting for map update...)`;
+    } else {
+        const totalMinutes = Math.floor(info.msUntilMidnight / 60000);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        timerSpan.textContent = ` (Resets in ${pad(hours)}:${pad(minutes)} hours)`;
+    }
 }
 
 function startRefreshCountdown() {
@@ -382,8 +437,37 @@ function renderCards() {
             const level2Obj = questList[cat] || {};
 
             Object.entries(level2Obj).forEach(([pokemonId, level3Obj]) => {
-                const pokemonData = pokedexMap[pokemonId];
-                const pokemonName = pokemonData?.name?.english || `ID: ${pokemonId}`;
+                const parts = String(pokemonId).split('-');
+                const baseId = parts[0];
+                const formSuffix = parts[1];
+
+                const pokemonData = pokedexMap[baseId];
+                let pokemonName = pokemonData?.names?.English || pokemonData?.name?.english || `ID: ${baseId}`;
+                
+                let targetImage = pokemonData?.assets?.image;
+                
+                if (formSuffix) {
+                    const formMap = {
+                        'a': { name: 'Alolan', id: 'ALOLAN' },
+                        'g': { name: 'Galarian', id: 'GALARIAN' },
+                        'h': { name: 'Hisuian', id: 'HISUIAN' },
+                        'p': { name: 'Paldean', id: 'PALDEAN' },
+                        '2792': { name: 'Hisuian', id: 'HISUIAN' }
+                    };
+                    const formInfo = formMap[formSuffix.toLowerCase()];
+                    if (formInfo) {
+                        pokemonName = `${formInfo.name} ${pokemonName}`;
+                        if (pokemonData?.assetForms) {
+                            const matchingForm = pokemonData.assetForms.find(f => f.form === formInfo.id);
+                            if (matchingForm && matchingForm.image) {
+                                targetImage = matchingForm.image;
+                            }
+                        }
+                    } else {
+                        pokemonName = `${pokemonName} (Form ${formSuffix})`;
+                    }
+                }
+
                 const amountKey = Object.keys(level3Obj)[0] || (cat === '12' ? '10' : '1');
                 const conditions = level3Obj[amountKey] || [];
 
@@ -394,7 +478,7 @@ function renderCards() {
                 labelWrapper.className = 'row-label-wrapper';
 
                 const iconImg = document.createElement('img');
-                iconImg.src = getPokemonArtworkUrl(pokemonId);
+                iconImg.src = targetImage || getPokemonGoSpriteUrl(baseId);
                 iconImg.alt = pokemonName;
                 iconImg.className = 'encounter-icon';
                 iconImg.loading = 'lazy';
@@ -695,7 +779,7 @@ async function init() {
         const cacheBuster = `?v=${Date.now()}`;
         const [questRes, pokedexRes] = await Promise.all([
             fetch(`./JSON/Quest_List.json${cacheBuster}`),
-            fetch(`./JSON/pokedex.json${cacheBuster}`)
+            fetch('https://pokemon-go-api.github.io/pokemon-go-api/api/pokedex.json')
         ]);
 
         if (!questRes.ok || !pokedexRes.ok) {
@@ -708,7 +792,11 @@ async function init() {
         ]);
 
         questList = questData.categories || {};
-        pokedexMap = Object.fromEntries(pokedexData.map(pkmn => [String(pkmn.id), pkmn]));
+        
+        questListCityStatus = questData.city_status || {};
+        updateCityDropdownAvailability();
+
+        pokedexMap = Object.fromEntries(pokedexData.map(pkmn => [String(pkmn.dexNr || pkmn.id), pkmn]));
 
         renderCards();
         refreshPresetSelect();

@@ -265,13 +265,16 @@ def populate_quest_list(quest_list: dict, current_quests_data: dict) -> None:
                 reward_dict[amount].append(condition)
 
 
-def scrape_city(city_key: str, quest_list: dict) -> None:
+def scrape_city(city_key: str, quest_list: dict) -> bool:
     if city_key not in CITIES:
         raise ValueError(f"Unknown city key: {city_key}")
     city_config = CITIES[city_key]
     log.info("--- Scraping %s (%s) ---", city_config["name"], city_key)
     current_quests = fetch_current_quests(city_key, city_config, quest_list)
     populate_quest_list(quest_list, current_quests)
+    
+    quests = current_quests.get("quests") or []
+    return len(quests) > 0
 
 
 def main() -> int:
@@ -313,14 +316,18 @@ def main() -> int:
     merged = merge_filter_sets(filter_maps)
     update_quest_list_structure(quest_list, merged, allow_pruning=allow_pruning)
 
+    city_status = quest_list.get("city_status", {})
+
     scrape_errors = []
     for city_key in city_keys:
         try:
-            scrape_city(city_key, quest_list)
+            has_quests = scrape_city(city_key, quest_list)
+            city_status[CITIES[city_key]["url"]] = has_quests
         except Exception as exp:
             scrape_errors.append(f"{city_key}: {exp}")
             log.error("Scrape failed for %s: %s", city_key, exp)
 
+    quest_list["city_status"] = city_status
     quest_list_path = os.path.join(JSON_DIR, "Quest_List.json")
     write_json(quest_list_path, quest_list)
     archive_snapshot("Quest_List.json", quest_list)

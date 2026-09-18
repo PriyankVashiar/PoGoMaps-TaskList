@@ -389,8 +389,14 @@ body {
 }
 
 .encounter-icon {
-    width: 30px;
-    height: 30px;
+    width: 46px;
+    height: 46px;
+    /* Negative margins 'eat' the transparent padding so it doesn't break the flex layout */
+    margin-top: -12px;
+    margin-bottom: -4px;
+    margin-left: -8px;
+    margin-right: -8px;
+    object-fit: contain;
 }
 
 .row-label {

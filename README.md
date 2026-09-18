@@ -43,12 +43,10 @@ PoGoMaps-TaskList/
 │   └── workflows/
 │       └── run_scraper.yml        # Daily automated scraper workflow
 ├── assets/
-│   ├── icons/                     # Small set of item icons (local)
-│   └── pokeapi-official-artwork/  # Not vendored — loaded via CDN
+│   └── icons/                     # Small set of item icons (local)
 ├── JSON/
 │   ├── archive/                   # Dated quest snapshots (scraper retention)
 │   ├── Quest_List.json
-│   ├── pokedex.json
 │   └── <city>_quests.json
 ├── index.html
 ├── script.js
@@ -59,9 +57,9 @@ PoGoMaps-TaskList/
 
 ### Artwork (CDN)
 
-Pokémon encounter images are loaded directly from the [PokeAPI sprites](https://github.com/PokeAPI/sprites) CDN:
+Pokémon encounter sprites are loaded directly from the [pokemon-go-api](https://github.com/pokemon-go-api/pokemon-go-api) assets directory:
 
-`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{id}.png`
+`https://raw.githubusercontent.com/pokemon-go-api/assets/main/Pokemon/pm{id}.icon.png`
 
 Item icons are served locally under `assets/icons/`.
 
@@ -92,14 +90,15 @@ Item icons are served locally under `assets/icons/`.
 ## 🧠 Code Logic & Architecture
 
 ### `map_scraper.py` (Data Ingestion)
-A Python script that fetches live JSON data from external Pokémon GO map providers. It processes the raw payloads, normalizes quest conditions and rewards (items, stardust, encounters), and writes clean snapshot files (`JSON/<city>_quests.json`). It also maintains a master `Quest_List.json` that the frontend uses to dynamically generate filter checkboxes.
+A Python script that fetches live JSON data from external Pokémon GO map providers. It processes the raw payloads, normalizes quest conditions and rewards (items, stardust, encounters), and writes clean snapshot files (`JSON/<city>_quests.json`). It also maintains a master `Quest_List.json` that the frontend uses to dynamically generate filter checkboxes and track which cities are currently missing quests (`city_status`).
 
 ### `index.html` & `style.css` (User Interface)
 A lightweight, responsive frontend that presents the available cities and dynamically loads available filters. It supports saving/loading presets to `localStorage` and includes interactive elements like custom start coordinates and real-time generation status.
 
 ### `script.js` (State Management & Filtering)
 The main frontend controller. It:
-- Fetches the `Quest_List.json` to build the UI checkboxes dynamically.
+- Uses `Intl.DateTimeFormat` for robust timezone calculations to safely handle regional reset windows (e.g. tracking local midnights across DST shifts).
+- Fetches the `Quest_List.json` to build the UI checkboxes dynamically and dynamically lock out empty map regions.
 - Fetches the specific `<city>_quests.json` when the user changes locations.
 - Intercepts form submissions, collects all active filters, and quickly scans the city's quests to find matching Pokéstops.
 - Sends the raw matched coordinates (and custom start point, if any) to `worker.js`.
@@ -164,7 +163,6 @@ Automated daily scraping is powered by `.github/workflows/run_scraper.yml`.
 
 ## 🙌 Special Thanks
 
-* **Map Creators**: `nycpokemap.com`, `sgpokemap.com`, `sydneypogomap.com`, `vanpokemap.com`, and `londonpogomap.com` for public map endpoints.
-* **[PokeAPI/sprites](https://github.com/PokeAPI/sprites)**: High-quality Pokémon artwork.
-* **[Purukitto/pokemon-data.json](https://github.com/Purukitto/pokemon-data.json)**: Pokédex data structure and mappings.
+* **Map Creators**: `[nycpokemap.com](https://nycpokemap.com)`, `[sgpokemap.com](https://sgpokemap.com)`, `[sydneypogomap.com](sydneypogomap.com)`, `[vanpokemap.com](vanpokemap.com)`, and `[londonpogomap.com](londonpogomap.com)` for public map endpoints.
+* **[pokemon-go-api/pokemon-go-api](https://github.com/pokemon-go-api/pokemon-go-api)**: Pokémon GO specific Pokédex data structure, forms, and in-game sprites.
 * **[dextel2](https://github.com/dextel2)**: Contribution to this project
