@@ -72,19 +72,51 @@ Item icons are served locally under `assets/icons/`.
 ```text
 ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
 │  map_scraper.py  │───>│  <city>_quests   │───>│    script.js     │───>│    worker.js     │───> Download
-│ (Pulls Map Data) │    │      (.json)     │    │  (Filters Items) │    │(Matrix + 2-Opt)  │     (.gpx)
+│ (Pulls Map Data) │    │      (.json)     │    │  (Filters Items) │    │ (TSP + Pruning)  │     (.gpx)
 └──────────────────┘    └──────────────────┘    └──────────────────┘    └──────────────────┘
 ```
 
-1. **Scrape**: `map_scraper.py` queries live map endpoints for active Pokéstops, parses active rewards/conditions, and outputs `JSON/<city_slug>_quests.json`.
+1. **Scrape**: `map_scraper.py` queries live map endpoints for active Pokéstops, parses active rewards/conditions, and outputs `JSON/<city_slug>_quests.json`. It also aggregates all available tasks into a global `Quest_List.json`.
 2. **Select**: Users load the web UI, choose city locations, apply task/reward filters (or load saved presets), and optionally input custom start coordinates.
 3. **Optimize**: Upon clicking **Generate Route**, matching points pass to `worker.js`, which:
-   * Projects lat/lng to 2D planar vectors (meters).
-   * Bins points into axial hex cells using 32-bit integer keys.
-   * Extracts the largest connected component of active hexes.
-   * Constructs a symmetric $N \times N$ `Float64Array` distance matrix.
-   * Solves TSP using Multi-Start Nearest Neighbor followed by 2-Opt and Or-Opt local search passes.
+   * Projects lat/lng to 2D planar vectors (meters) for accurate Euclidean distance calculations.
+   * Identifies the dense core cluster using auto-tuning Hex Binning (Largest Connected Component), falling back to DBSCAN if needed.
+   * Pre-prunes spatial outliers and isolated "arms" using KNN and centroid distances to prevent long back-and-forth detours.
+   * Constructs a symmetric $N \times N$ `Float64Array` distance matrix and pre-computes $K$-nearest spatial neighbor lists.
+   * Solves the Traveling Salesperson Problem (TSP) within a strict time limit using Multi-Start Nearest Neighbor, Greedy Tour construction, and Iterated Local Search (ILS) with 2-Opt (using neighbor lists), Or-Opt (1–5 node segments), and Double-Bridge perturbations.
+   * Post-prunes the final route to eliminate any remaining stops with disproportionately high inclusion costs.
 4. **Export**: Formats the final sequence into an XML `.gpx` route file and triggers browser download.
+
+---
+
+## 🧠 Code Logic & Architecture
+
+### `map_scraper.py` (Data Ingestion)
+A Python script that fetches live JSON data from external Pokémon GO map providers. It processes the raw payloads, normalizes quest conditions and rewards (items, stardust, encounters), and writes clean snapshot files (`JSON/<city>_quests.json`). It also maintains a master `Quest_List.json` that the frontend uses to dynamically generate filter checkboxes.
+
+### `index.html` & `style.css` (User Interface)
+A lightweight, responsive frontend that presents the available cities and dynamically loads available filters. It supports saving/loading presets to `localStorage` and includes interactive elements like custom start coordinates and real-time generation status.
+
+### `script.js` (State Management & Filtering)
+The main frontend controller. It:
+- Fetches the `Quest_List.json` to build the UI checkboxes dynamically.
+- Fetches the specific `<city>_quests.json` when the user changes locations.
+- Intercepts form submissions, collects all active filters, and quickly scans the city's quests to find matching Pokéstops.
+- Sends the raw matched coordinates (and custom start point, if any) to `worker.js`.
+- Receives the optimized ordered route back from the worker and formats it into a valid GPX XML structure for download.
+
+### `worker.js` (The Routing Engine)
+This Web Worker contains the heavy algorithmic logic, running on a separate thread to prevent UI freezing. Its pipeline is:
+1. **Filtering**: Discards points outside hardcoded city bounding boxes.
+2. **Clustering**: Groups points into density clusters. It first tries **Hex Binning** (mapping points to a flat axial coordinate grid and extracting the largest connected component). It uses binary search to find a hex size that yields a target number of stops (70–250). If hex binning fails to find a good range, it falls back to **DBSCAN**.
+3. **Spatial Pruning (`pruneOutliers`)**: Removes points that survived clustering but are far from the main group (using K-Nearest Neighbors IQR and centroid distance).
+4. **Distance Matrix**: Calculates an $O(N^2)$ Euclidean distance matrix and builds K-nearest neighbor lists.
+5. **TSP Construction**: Creates initial routes using both **Multi-Start Nearest Neighbor** (starting from multiple different points) and a **Greedy Tour** (always picking the globally shortest valid edge).
+6. **Iterated Local Search (ILS)**: Takes the best initial routes and aggressively optimizes them until a time limit (e.g., 2000ms) is reached:
+   - **2-Opt**: Uncrosses intersecting edges. It uses the pre-computed neighbor lists ($O(nK)$ instead of $O(n^2)$) for massive speedups.
+   - **Or-Opt**: Relocates continuous segments (1 to 5 nodes long) to better positions in the route.
+   - **Double-Bridge Perturbation**: To escape local minima, it forcefully breaks 4 edges and reconnects the route in a non-sequential order, then feeds it back into 2-Opt/Or-Opt.
+7. **Detour Pruning (`pruneRouteDetours`)**: A final pass over the optimized route to drop any individual stops that add excessive distance compared to the route's average edge length.
 
 ---
 
