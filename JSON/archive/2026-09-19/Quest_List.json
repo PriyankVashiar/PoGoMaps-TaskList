@@ -1091,6 +1091,7 @@
   "city_status": {
     "https://sydneypogomap.com": true,
     "https://sgpokemap.com": false,
-    "https://londonpogomap.com": true
+    "https://londonpogomap.com": true,
+    "https://nycpokemap.com": true
   }
 }
